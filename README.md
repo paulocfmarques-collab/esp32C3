@@ -273,20 +273,23 @@ According to the current code:
 
 ```mermaid
 sequenceDiagram
-    participant User as User
+    participant User
     participant Btn as Buttons
-    participant Loop as loop()
+    participant Main as MainLoop
     participant GW as ESP32Gateway
     participant CMD as CommandProcessor
     participant DISP as DisplayUtil
 
     User->>Btn: Press button
-    Btn->>Loop: Update page / action
+    Btn->>Main: Update page or action
+
     User->>GW: Send UDP command
     GW->>CMD: Execute command
+
     CMD->>DISP: Print response
     CMD->>GW: Reply via UDP
-    Loop->>DISP: Render current screen
+
+    Main->>DISP: Render current screen
 ```
 
 ## Changelog
