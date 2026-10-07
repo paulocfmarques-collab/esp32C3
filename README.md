@@ -7,49 +7,49 @@
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![Repo](https://img.shields.io/badge/GitHub-Ready-181717.svg?logo=github)
 
-Gateway para **ESP32-C3** com display TFT 1.44", portal Wi‑Fi, console UDP, NTP, clima, OTA e feedback visual por LED RGB. O projeto foi organizado para ficar mais claro no GitHub, com documentação prática, mapa de arquivos, visão de arquitetura e um changelog detalhado.
+Gateway for **ESP32-C3** with a 1.44" TFT display, Wi‑Fi portal, UDP console, NTP, weather, OTA, and visual feedback through an RGB LED. The project has been organized to be clearer on GitHub, with complete documentation and architecture diagrams.
 
-> Ideal para automação embarcada, painel local, controle remoto via rede e monitoramento rápido do dispositivo.
+> Ideal for embedded automation, local dashboards, remote network control, and quick device monitoring.
 
-## Destaques
+## Highlights
 
-- **Tela TFT 1.44"** com páginas de relógio, status, rede, sistema e redes salvas
-- **Portal Wi‑Fi** com até 5 redes persistentes e lista circular
-- **Console UDP** para comandos remotos
-- **NTP com fuso e DST** persistidos em flash
-- **Clima via Open-Meteo** com atualização periódica
-- **LED RGB** com estados, blink e breathing
-- **OTA** quando conectado como estação
-- **Botões físicos** para navegação e ações longas
-- **Modo economia** com deep sleep via comando `desliga`
+- **1.44" TFT display** with clock, status, network, system, and saved networks pages
+- **Wi‑Fi portal** with up to 5 persistent networks and circular list management
+- **UDP console** for remote commands
+- **NTP with timezone and DST** persisted in flash
+- **Weather via Open-Meteo** with periodic updates
+- **RGB LED** with status indication, blink, and breathing effects
+- **OTA** when connected in station mode
+- **Physical buttons** for navigation and long-press actions
+- **Power-saving mode** with deep sleep via `desliga` command
 
-## Visão geral do sistema
+## System Overview
 
 ```mermaid
 flowchart TD
-    A[Alimentação / Reset] --> B[ESP32-C3]
-    B --> C[Display TFT 1.44\"]
-    B --> D[LED RGB]
+    A[Power / Reset] --> B[ESP32-C3]
+    B --> C[1.44\" TFT Display]
+    B --> D[RGB LED]
     B --> E[Wi-Fi STA/AP]
     B --> F[UDP Console]
-    B --> G[Portal HTTP]
+    B --> G[HTTP Portal]
     B --> H[NTP]
-    B --> I[Clima]
+    B --> I[Weather]
     B --> J[OTA]
-    B --> K[Botões físicos]
+    B --> K[Physical Buttons]
 
-    E -->|Rede salva| L[Conexão automática]
-    E -->|Sem rede| M[AP ESP32_C3_CONFIG]
+    E -->|Saved network| L[Automatic connection]
+    E -->|No network| M[AP ESP32_C3_CONFIG]
     G --> N[/info]
     G --> O[/wifi]
     F --> P[CommandProcessor]
-    H --> Q[Hora local]
-    I --> R[Temperatura e condição]
+    H --> Q[Local time]
+    I --> R[Temperature and condition]
     P --> D
     P --> C
 ```
 
-## Arquitetura dos módulos
+## Module Architecture
 
 ```mermaid
 classDiagram
@@ -65,7 +65,7 @@ classDiagram
       +showNetworkPage()
       +showSystemPage()
       +showSavedWifiPage()
-      +desenharMatrixScreensaver()
+      +drawMatrixScreensaver()
     }
 
     class ESP32Gateway {
@@ -80,15 +80,15 @@ classDiagram
     class CommandProcessor {
       +executeCommand()
       +update()
-      +executarHealth()
+      +runHealth()
     }
 
     class NTPUtil {
       +initNTP()
       +getDateTime()
-      +getSomenteHora()
-      +atualizarConfiguracao()
-      +ajustarDataHora()
+      +getTimeOnly()
+      +updateConfiguration()
+      +adjustDateTime()
     }
 
     class RGBLed {
@@ -109,7 +109,7 @@ classDiagram
     CommandProcessor --> RGBLed
 ```
 
-## Estrutura do repositório
+## Repository Structure
 
 ```mermaid
 graph LR
@@ -126,37 +126,37 @@ graph LR
     A --> L[LEIA-ME.md]
 ```
 
-## Funcionalidades
+## Features
 
-### Interface no display
+### Display Interface
 
-- Relógio principal com data, hora e progresso visual
-- Página de status com CPU, RAM, uptime e NTP
-- Página de rede com SSID, IP, canal, RSSI e MAC
-- Página do sistema com chip, memória e firmware
-- Página de redes salvas com slot atual e conectada
-- Tela de console para respostas de comandos
-- Screensaver estilo matrix após inatividade
+- Main clock screen with date, time, and visual progress
+- Status page with CPU, RAM, uptime, and NTP
+- Network page with SSID, IP, channel, RSSI, and MAC
+- System page with chip, memory, and firmware
+- Saved networks page with active slot and connected network
+- Console screen for command responses
+- Matrix-style screensaver after inactivity
 
-### Conectividade
+### Connectivity
 
-- Conexão automática à melhor rede salva disponível
-- Fallback para modo AP: `ESP32_C3_CONFIG`
-- Servidor HTTP com:
+- Automatic connection to the best available saved network
+- Fallback to AP mode: `ESP32_C3_CONFIG`
+- HTTP server with:
   - `/info`
   - `/wifi`
-- Recebimento de comandos por UDP
-- Atualização OTA quando em modo STA conectado
+- UDP command reception
+- OTA updates when connected in STA mode
 
-### Energia e operação
+### Power and Operation
 
-- `desliga` coloca o dispositivo em deep sleep
-- LED indica estados operacionais
-- Botões físicos permitem navegação e ações críticas
+- `desliga` puts the device into deep sleep
+- LED indicates operating states
+- Physical buttons enable navigation and critical actions
 
-## Comandos UDP
+## UDP Commands
 
-### Sistema
+### System
 
 - `help`
 - `info`
@@ -175,7 +175,7 @@ graph LR
 - `chip_info`
 - `health`
 
-### Rede
+### Network
 
 - `net_info`
 - `mac`
@@ -186,13 +186,13 @@ graph LR
 - `channel`
 - `wifi_status`
 
-### Horário
+### Time
 
 - `time`
 - `date`
 - `ntp_status`
 - `set_fuso:X`
-- `set_time:AAAA-MM-DD HH:MM:SS`
+- `set_time:YYYY-MM-DD HH:MM:SS`
 - `dst_on`
 - `dst_off`
 
@@ -204,13 +204,13 @@ graph LR
 - `led_pisca:P:I`
 - `led_blink:I`
 
-### Clima
+### Weather
 
 - `clima`
 - `clima_age`
 - `clima_sync`
 
-## Exemplo rápido de uso
+## Quick Usage Example
 
 ```bash
 help
@@ -223,11 +223,11 @@ clima_sync
 health
 ```
 
-## Hardware e pinagem
+## Hardware and Pinout
 
-Conforme o código atual:
+According to the current code:
 
-| Sinal | GPIO |
+| Signal | GPIO |
 |---|---:|
 | LCD CS | 2 |
 | LCD DC | 0 |
@@ -235,66 +235,66 @@ Conforme o código atual:
 | LCD MOSI | 4 |
 | LCD SCK | 3 |
 | RGB LED | 11 |
-| Botão Página | 8 |
-| Botão BOOT | 9 |
-| Botão Usuário | 10 |
+| Page Button | 8 |
+| BOOT Button | 9 |
+| User Button | 10 |
 
-## Como compilar no Arduino IDE
+## How to Compile in Arduino IDE
 
-1. Instale **ESP32 by Espressif Systems** na série 3.x
-2. Selecione **ESP32C3 Dev Module**
-3. Ative **USB CDC On Boot** se quiser serial pela USB nativa
-4. Use um esquema de partições com OTA
-5. Instale **GFX Library for Arduino (Arduino_GFX)**
-6. Abra `ESP32C3.ino` mantendo todos os arquivos juntos na mesma pasta
+1. Install **ESP32 by Espressif Systems** (3.x series)
+2. Select **ESP32C3 Dev Module**
+3. Enable **USB CDC On Boot** if you want serial over native USB
+4. Use a partition scheme with OTA support
+5. Install **GFX Library for Arduino (Arduino_GFX)**
+6. Open `ESP32C3.ino`, keeping all files together in the same folder
 
-## Dependências principais
+## Main Dependencies
 
 - `WiFi.h`
 - `Preferences.h`
 - `time.h`
 - `Arduino_GFX`
 - `Open-Meteo` via `ClimaManager`
-- suporte nativo do core ESP32 para OTA e rede
+- Native ESP32 core support for OTA and networking
 
-## Fluxo de operação
+## Operational Flow
 
 ```mermaid
 sequenceDiagram
-    participant User as Usuário
-    participant Btn as Botões
+    participant User as User
+    participant Btn as Buttons
     participant Loop as loop()
     participant GW as ESP32Gateway
     participant CMD as CommandProcessor
     participant DISP as DisplayUtil
 
-    User->>Btn: Pressiona botão
-    Btn->>Loop: Atualiza página / ação
-    User->>GW: Envia comando UDP
-    GW->>CMD: executa comando
-    CMD->>DISP: imprime resposta
-    CMD->>GW: responde via UDP
-    Loop->>DISP: renderiza tela atual
+    User->>Btn: Press button
+    Btn->>Loop: Update page / action
+    User->>GW: Send UDP command
+    GW->>CMD: Execute command
+    CMD->>DISP: Print response
+    CMD->>GW: Reply via UDP
+    Loop->>DISP: Render current screen
 ```
 
 ## Changelog
 
-Veja o arquivo [CHANGELOG.md](CHANGELOG.md) para um histórico completo e documentado das mudanças.
+See [CHANGELOG.md](CHANGELOG.md) for a complete and documented change history.
 
-## Versão premium para GitHub
+## Premium GitHub Presentation
 
-Este repositório agora inclui uma apresentação mais rica para GitHub, com:
+This repository now includes a richer GitHub presentation with:
 
-- badges no topo
-- diagramas Mermaid
-- blocos de arquitetura
-- organização orientada a visitantes
-- descrição clara de recursos e uso
+- top badges
+- Mermaid diagrams
+- architecture blocks
+- visitor-oriented organization
+- clear feature and usage descriptions
 
-## Contribuição
+## Contributing
 
-Pull requests e melhorias são bem-vindos. Se quiser, posso também transformar isso em um fluxo de contribuição com issue templates e guia de desenvolvimento.
+Pull requests and improvements are welcome. If you want, I can also turn this into a contribution workflow with issue templates and a development guide.
 
-## Licença
+## License
 
-Nenhuma licença foi definida ainda.
+No license has been defined yet.
