@@ -25,12 +25,15 @@ Gateway for **ESP32-C3** with a 1.44" TFT display, Wi‑Fi portal, UDP console, 
 
 ## System Overview
 
+# System Architecture
+
 ```mermaid
 flowchart TD
-    A[Power / Reset] --> B[ESP32-C3]
-    B --> C[1.44\" TFT Display]
+    A[Power Reset] --> B[ESP32-C3]
+
+    B --> C["1.44 TFT Display"]
     B --> D[RGB LED]
-    B --> E[Wi-Fi STA/AP]
+    B --> E[Wi-Fi STA AP]
     B --> F[UDP Console]
     B --> G[HTTP Portal]
     B --> H[NTP]
@@ -38,16 +41,25 @@ flowchart TD
     B --> J[OTA]
     B --> K[Physical Buttons]
 
-    E -->|Saved network| L[Automatic connection]
-    E -->|No network| M[AP ESP32_C3_CONFIG]
-    G --> N[/info]
-    G --> O[/wifi]
+    E -->|Saved network| L[Automatic Connection]
+    E -->|No Network| M["AP ESP32_C3_CONFIG"]
+
+    G --> N["/info"]
+    G --> O["/wifi"]
+
     F --> P[CommandProcessor]
-    H --> Q[Local time]
-    I --> R[Temperature and condition]
+
+    H --> Q[Local Time]
+    I --> R[Temperature and Condition]
+
     P --> D
     P --> C
 ```
+
+## Description
+
+- **ESP32-C3** is the central controller.
+- **TFT Display** shows status,
 
 ## Module Architecture
 
