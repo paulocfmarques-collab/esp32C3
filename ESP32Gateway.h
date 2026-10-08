@@ -16,6 +16,7 @@ public:
     bool receiveCommand(String& comando);
     void sendMessage(String message);
     void clearConfig();
+    bool addWifiProfile(String ssid, const String& password, String& error);
     String savedSsid(uint8_t slot) const;
     uint8_t nextSlot() const { return nextWifiSlot_; }
     
@@ -28,6 +29,8 @@ private:
     };
 
     bool connectWifi();
+    void checkNetworkWatchdog();
+    uint32_t networkSeenAt_ = 0;
     void loadWifiCredentials();
     String buildConfigPage() const;
     void initPortal();

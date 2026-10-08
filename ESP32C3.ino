@@ -6,13 +6,16 @@
 #include "OTAManager.h"
 #include "ClimaManager.h"
 #include <WiFi.h>
+#include <Preferences.h>
 
-constexpr uint8_t USER_BUTTON_PIN = 10; // Key2: paginas e pressao longa
+constexpr uint8_t USER_BUTTON_PIN = 10; // K2: retorna pagina
 constexpr uint8_t PAGE_BUTTON_PIN = 8; // Key1: paginas
 constexpr uint8_t BOOT_BUTTON_PIN = 9; // BOOT: paginas
 volatile bool pageButtonPending = false;
 void ARDUINO_ISR_ATTR onPageButtonPressed() { pageButtonPending = true; }
 
+constexpr uint8_t PAGE_COUNT = 7;
+NetworkMonitor networkMonitor;
 DisplayUtil display;
 RGBLed rgbLed;
 ESP32Gateway gateway;
@@ -22,6 +25,21 @@ CommandProcessor commandProcessor(display, gateway, ntp, rgbLed);
 bool otaInicializadoCompleto = false;
 uint32_t tempoUltimoComando = 0; // Monitor de ociosidade
 
+void clearSavedSettings() {
+  bool success = true;
+  for (const char* name : {"wifi", "ntp_cfg"}) {
+    Preferences settings;
+    if (!settings.begin(name, false)) { success = false; continue; }
+    success = settings.clear() && success;
+    settings.end();
+  }
+  display.showHoldMessage(success ? "CONFIG APAGADA" : "FALHA NA LIMPEZA",
+                          "Solte BOOT", success ? 0x07E0 : 0xF800);
+  while (digitalRead(BOOT_BUTTON_PIN) == LOW) delay(10);
+  delay(300);
+  ESP.restart();
+}
+
 void setup() 
 {
   Serial.begin(115200);
@@ -29,10 +47,10 @@ void setup()
   pinMode(USER_BUTTON_PIN, INPUT_PULLUP);
   pinMode(PAGE_BUTTON_PIN, INPUT_PULLUP);
   pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(PAGE_BUTTON_PIN), onPageButtonPressed, FALLING);
-  attachInterrupt(digitalPinToInterrupt(BOOT_BUTTON_PIN), onPageButtonPressed, FALLING);
 
   display.begin();
+  pageButtonPending = false;
+  attachInterrupt(digitalPinToInterrupt(PAGE_BUTTON_PIN), onPageButtonPressed, FALLING);
   display.setRotation(1); 
   display.clear();
   display.println("Sistema Inicializando...");
@@ -43,6 +61,7 @@ void setup()
 
   rgbLed.begin();
   gateway.begin();
+  networkMonitor.begin();
   ntp.carregarConfiguracoes();
 
   if (WiFi.getMode() == WIFI_STA && WiFi.status() == WL_CONNECTED)
@@ -69,19 +88,41 @@ void loop()
   static int lastButtonReading = HIGH;
   static int buttonState = HIGH;
   static uint32_t lastDebounceTime = 0;
-  static uint32_t buttonPressedAt = 0;
-  static uint8_t holdStage = 0;
   static bool pageButtonLatched = false;
   static uint32_t pageButtonReleasedAt = 0;
   String comando;
 
+  static int bootState = HIGH;
+  static int lastBootReading = HIGH;
+  static uint32_t bootDebounceAt = 0;
+  static uint32_t bootPressedAt = 0;
+  const int bootReading = digitalRead(BOOT_BUTTON_PIN);
+  if (bootReading != lastBootReading) bootDebounceAt = millis();
+  if (millis() - bootDebounceAt >= 50 && bootReading != bootState) {
+    bootState = bootReading;
+    if (bootState == LOW) {
+      bootPressedAt = millis();
+      display.showHoldMessage("LIMPAR CONFIG?", "BOOT por 5 segundos", 0xFFE0);
+    } else {
+      display.clear();
+      lastClockUpdate = 0;
+    }
+  }
+  lastBootReading = bootReading;
+  if (bootState == LOW) {
+    if (millis() - bootPressedAt >= 5000) clearSavedSettings();
+    delay(5);
+    return; // Preserva a mensagem de confirmacao durante a pressao.
+  }
+
   gateway.handleClient();
+  networkMonitor.update();
   commandProcessor.update();  
 
   // Captura por interrupcao preserva toques durante redesenho ou consulta HTTP.
   if (pageButtonLatched) {
     pageButtonPending = false;
-    if (digitalRead(PAGE_BUTTON_PIN) == HIGH && digitalRead(BOOT_BUTTON_PIN) == HIGH) {
+    if (digitalRead(PAGE_BUTTON_PIN) == HIGH) {
       if (pageButtonReleasedAt == 0) pageButtonReleasedAt = millis();
       if (millis() - pageButtonReleasedAt >= 50) pageButtonLatched = false;
     } else pageButtonReleasedAt = 0;
@@ -89,7 +130,7 @@ void loop()
     pageButtonPending = false;
     pageButtonLatched = true;
     pageButtonReleasedAt = 0;
-    currentPage = (currentPage + 1) % 5;
+    currentPage = (currentPage + 1) % PAGE_COUNT;
     display.setRotation(1);
     showingDashboard = true;
     lastClockUpdate = 0;
@@ -98,61 +139,21 @@ void loop()
     Serial.printf("[BOTAO] Pagina %u\n", currentPage);
   }
 
-  int buttonReading = digitalRead(USER_BUTTON_PIN);
-  if (buttonReading != lastButtonReading)
-  {
-    lastDebounceTime = millis();
-  }
-  if (millis() - lastDebounceTime >= 50 && buttonReading != buttonState)
-  {
+  // K2 retorna uma pagina ao soltar; sem apagar ou reiniciar por pressao longa.
+  const int buttonReading = digitalRead(USER_BUTTON_PIN);
+  if (buttonReading != lastButtonReading) lastDebounceTime = millis();
+  if (millis() - lastDebounceTime >= 50 && buttonReading != buttonState) {
     buttonState = buttonReading;
-    if (buttonState == LOW)
-    {
-      buttonPressedAt = millis();
-      holdStage = 0;
-    }
-    else if (holdStage == 0)
-    {
-      currentPage = (currentPage + 1) % 5;
+    if (buttonState == HIGH) {
+      currentPage = (currentPage + PAGE_COUNT - 1) % PAGE_COUNT;
       display.setRotation(1);
       showingDashboard = true;
       lastClockUpdate = 0;
       statusPageShownAt = millis();
       tempoUltimoComando = millis();
     }
-    else if (holdStage == 1)
-    {
-      display.showHoldMessage("REINICIANDO", "", 0x07FF);
-      delay(500);
-      ESP.restart();
-    }
-    else
-    {
-      display.showHoldMessage("WI-FI APAGADO", "Reiniciando...", 0xF800);
-      delay(500);
-      gateway.clearConfig();
-    }
   }
   lastButtonReading = buttonReading;
-
-  if (buttonState == LOW)
-  {
-    uint32_t held = millis() - buttonPressedAt;
-    if (held >= 10000 && holdStage < 2)
-    {
-      holdStage = 2;
-      rgbLed.red();
-      display.showHoldMessage("APAGAR WI-FI", "Solte p/ confirmar", 0xF800);
-    }
-    else if (held >= 3000 && holdStage < 1)
-    {
-      holdStage = 1;
-      rgbLed.blue();
-      display.showHoldMessage("REINICIAR", "Solte (ou segure 10s)", 0x07FF);
-    }
-    tempoUltimoComando = millis();
-    statusPageShownAt = millis();
-  }
 
   if (otaInicializadoCompleto && WiFi.status() == WL_CONNECTED) 
   {
@@ -168,7 +169,7 @@ void loop()
   // Se receber comando UDP, zera o temporizador do Screensaver e acorda o display
   if (gateway.receiveCommand(comando))
   {
-    display.setRotation(0);
+    display.setRotation(1); // Console: 90 degrees clockwise from its previous orientation.
     showingDashboard = false;
     commandProcessor.executeCommand(comando);
     responseUntil = millis() + 10000;
@@ -186,7 +187,7 @@ void loop()
     lastClockUpdate = 0;
   }
 
-  if (showingDashboard && holdStage == 0)
+  if (showingDashboard)
   {
     if (currentPage != 0 && millis() - statusPageShownAt >= 30000)
     {
@@ -229,6 +230,8 @@ void loop()
         }
         display.showSavedWifiPage(ssids,connectedSlot,gateway.nextSlot());
       }
+      else if (currentPage == 5) display.showMonitorPage(networkMonitor);
+      else if (currentPage == 6) display.showForecastPage();
       lastClockUpdate = millis();
     }
   }

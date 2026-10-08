@@ -4,10 +4,12 @@
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
 #include <vector>
+#include "NetworkMonitor.h"
 
 class DisplayUtil {
 private:
     Arduino_GFX* gfx;
+    Arduino_GFX* panel;
     std::vector<String> lines;
     uint16_t textColor;
     uint16_t backgroundColor;
@@ -36,6 +38,8 @@ public:
     void showClock(String dateTime);
     void showStatusPage(bool synced, const String& dateTime, int32_t offset, bool dst);
     void showNetworkPage();
+    void showMonitorPage(const NetworkMonitor& monitor);
+    void showForecastPage();
     void showSystemPage();
     void showSavedWifiPage(const String ssids[5], int connectedSlot, uint8_t nextSlot);
     void showHoldMessage(const String& line1, const String& line2, uint16_t color);

@@ -91,10 +91,12 @@ void ESP32Gateway::begin()
     }
 
     udp.begin(udpPort);
+    networkSeenAt_ = millis();
 } 
 
 void ESP32Gateway::handleClient()
 {
+  checkNetworkWatchdog();
   if (WiFi.getMode() == WIFI_AP || WiFi.status() == WL_CONNECTED)
   {
     server.handleClient();
@@ -248,6 +250,7 @@ bool ESP32Gateway::connectWifi()
   rgbLed.blue();
   Serial.println("Procurando redes Wi-Fi salvas...");
 
+  display.println("Buscando redes...");
   int networkCount = WiFi.scanNetworks();
   if (networkCount < 0)
   {
@@ -278,7 +281,9 @@ bool ESP32Gateway::connectWifi()
 
     const String& ssid = savedNetworks_[slot].ssid;
     const String& password = savedNetworks_[slot].password;
-    Serial.println("Rede salva encontrada; tentando conexao...");
+    display.println("Tentando SSID:");
+    display.println(ssid);
+    Serial.println("Tentando SSID: " + ssid);
     WiFi.begin(ssid.c_str(), password.c_str());
 
     for (uint8_t attempt = 0; attempt < 20 && WiFi.status() != WL_CONNECTED; attempt++)
@@ -305,21 +310,16 @@ bool ESP32Gateway::connectWifi()
   return false;
 }
 
-void ESP32Gateway::saveWifi() {
-  String novoSSID = server.arg("ssid");
-  String novaSenha = server.arg("senha");
-  novoSSID.trim();
-
-  if (novoSSID.length() == 0 || novoSSID.length() > 32 || novaSenha.length() > 64)
-  {
-    server.send(400, "text/plain; charset=utf-8", "SSID ou senha invalidos.");
-    return;
+bool ESP32Gateway::addWifiProfile(String ssid, const String& password, String& error) {
+  ssid.trim();
+  if (ssid.length() == 0 || ssid.length() > 32 || password.length() > 64) {
+    error = "SSID ou senha invalidos.";
+    return false;
   }
-
   int existingSlot = -1;
   for (uint8_t i = 0; i < 5; i++)
   {
-    if (savedNetworks_[i].ssid == novoSSID)
+    if (savedNetworks_[i].ssid == ssid)
     {
       existingSlot = i;
       break;
@@ -331,22 +331,20 @@ void ESP32Gateway::saveWifi() {
   String passwordKey = "pass" + String(slot);
 
   if (!prefs.begin("wifi", false))
-  {
-    server.send(500, "text/plain; charset=utf-8", "Nao foi possivel abrir o armazenamento.");
-    return;
+  {    error = "Nao foi possivel abrir o armazenamento.";
+    return false;
   }
 
-  size_t ssidBytes = prefs.putString(ssidKey.c_str(), novoSSID);
-  size_t passwordBytes = prefs.putString(passwordKey.c_str(), novaSenha);
-  if (ssidBytes != novoSSID.length() ||
-      passwordBytes != novaSenha.length() ||
+  size_t ssidBytes = prefs.putString(ssidKey.c_str(), ssid);
+  size_t passwordBytes = prefs.putString(passwordKey.c_str(), password);
+  if (ssidBytes != ssid.length() ||
+      passwordBytes != password.length() ||
       !prefs.isKey(ssidKey.c_str()) || !prefs.isKey(passwordKey.c_str()) ||
-      prefs.getString(ssidKey.c_str(), "") != novoSSID ||
-      prefs.getString(passwordKey.c_str(), "") != novaSenha)
+      prefs.getString(ssidKey.c_str(), "") != ssid ||
+      prefs.getString(passwordKey.c_str(), "") != password)
   {
-    prefs.end();
-    server.send(500, "text/plain; charset=utf-8", "Falha ao gravar a rede.");
-    return;
+    prefs.end();    error = "Falha ao gravar a rede.";
+    return false;
   }
 
   if (existingSlot < 0)
@@ -354,19 +352,26 @@ void ESP32Gateway::saveWifi() {
     uint8_t nextSlot = (slot + 1) % 5;
     if (prefs.putUChar("next", nextSlot) != 1)
     {
-      prefs.end();
-      server.send(500, "text/plain; charset=utf-8", "Falha ao atualizar a lista circular.");
-      return;
+      prefs.end();    error = "Falha ao atualizar a lista circular.";
+    return false;
     }
     nextWifiSlot_ = nextSlot;
   }
   prefs.end();
 
-  savedNetworks_[slot].ssid = novoSSID;
-  savedNetworks_[slot].password = novaSenha;
+  savedNetworks_[slot].ssid = ssid;
+  savedNetworks_[slot].password = password;
+  return true;
 
-  server.send(200, "text/html; charset=utf-8",
-              "<h2>Rede salva na lista circular.</h2><p>O dispositivo vai reiniciar e procurar as redes cadastradas.</p>");
+}
+
+void ESP32Gateway::saveWifi() {
+  String error;
+  if (!addWifiProfile(server.arg("ssid"), server.arg("senha"), error)) {
+    server.send(400, "text/plain; charset=utf-8", error);
+    return;
+  }
+  server.send(200, "text/html; charset=utf-8", "<h2>Rede salva. Reiniciando...</h2>");
   delay(2000);
   ESP.restart();
 }
@@ -420,3 +425,17 @@ void ESP32Gateway::sendMessage(String message)
 }
 
 String ESP32Gateway::savedSsid(uint8_t slot) const { return slot < 5 ? savedNetworks_[slot].ssid : String(""); }
+
+void ESP32Gateway::checkNetworkWatchdog() {
+  if (WiFi.status() == WL_CONNECTED) {
+    networkSeenAt_ = millis();
+    return;
+  }
+  if (millis() - networkSeenAt_ >= 30UL * 60UL * 1000UL) {
+    Serial.println("[REDE] 30 minutos sem conexao; reiniciando busca.");
+    display.println("Sem WiFi por 30min");
+    display.println("Reiniciando busca...");
+    delay(250);
+    ESP.restart();
+  }
+}

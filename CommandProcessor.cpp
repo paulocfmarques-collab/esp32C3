@@ -54,61 +54,53 @@ void CommandProcessor::executeCommand(String command)
     return;
   }
 
-  String commandLog = "> " + command + "\n";
+  String visibleCommand = command.startsWith("wifi_add:") ? "wifi_add:[credenciais ocultas]" : command;
+  String commandLog = "> " + visibleCommand + "\n";
   String message = "";
   Serial.print(commandLog);
-  display_.println("> " + command);
+  display_.println("> " + visibleCommand);
 
   
   if (command == "help")
   {
     message = "COMANDOS ESP32-C3\n"
               "[SISTEMA]\n"
-              "help\n"
-              "info\n"
-              "status\n"
-              "uptime\n"
-              "reason\n"
-              "version\n"
-              "build\n"
-              "alive\n"
-              "reboot\n"
-              "desliga\n"
-              "temp\n"
-              "cpu\n"
-              "ram\n"
-              "flash\n"
-              "chip_info\n"
-              "health\n"
+              "help - Este menu\n"
+              "info/status - Resumo do dispositivo\n"
+              "uptime - Tempo ligado\n"
+              "reason - Motivo do reset\n"
+              "version/build - Versao e compilacao\n"
+              "alive - Teste de resposta\n"
+              "reboot - Reinicia e busca redes\n"
+              "desliga - Sono profundo; volta por RESET\n"
+              "temp/cpu/ram/flash/chip_info - Hardware\n"
+              "health - Diagnostico\n"
               "[REDE]\n"
-              "net_info\n"
-              "mac\n"
-              "reset_wifi\n"
-              "rssi\n"
-              "ip\n"
-              "ssid\n"
-              "channel\n"
-              "wifi_status\n"
+              "wifi_list - Somente SSIDs salvos\n"
+              "wifi_add:SSID|SENHA - Salva na lista de 5\n"
+              "Ex.: wifi_add:MinhaRede|MinhaSenha\n"
+              "Rede aberta: wifi_add:MinhaRede|\n"
+              "SSID existente: atualiza senha\n"
+              "Depois use reboot para buscar redes\n"
+              "reset_wifi - Apaga redes e reinicia\n"
+              "net_info/wifi_status - Estado da rede\n"
+              "mac/ip/ssid/channel/rssi - Dados da rede\n"
+              "Sem WiFi por 30min: reinicia automaticamente\n"
               "[HORARIO]\n"
-              "time\n"
-              "date\n"
-              "ntp_status\n"
-              "set_fuso:X\n"
-              "set_time:AAAA-MM-DD HH:MM:SS\n"
-              "dst_on\n"
-              "dst_off\n"
+              "time/date/ntp_status - Relogio\n"
+              "set_fuso:X - UTC de -12 a +14\n"
+              "set_time:AAAA-MM-DD HH:MM:SS - Hora manual\n"
+              "Ex.: set_time:2026-10-07 14:30:00\n"
+              "dst_on/dst_off - Horario de verao\n"
               "[LED]\n"
-              "led_on\n"
-              "led_off\n"
-              "led_breath\n"
-              "led_pisca:P:I\n"
-              "led_blink:I\n"
+              "led_on/led_off - Liga/desliga\n"
+              "led_breath - Pulsacao\n"
+              "led_pisca:P:I - P pulsos, intervalo I ms\n"
+              "P=1 a 100; I=1 a 5000\n"
+              "led_blink:I - Continuo; I=50 a 60000 ms\n"
               "[CLIMA]\n"
-              "clima\n"
-              "clima_age\n"
-              "clima_sync\n"
-              "P = pulsos; I = intervalo em ms\n"
-              "X = fuso UTC (ex.: -3)\n";
+              "clima/clima_age - Condicao e idade\n"
+              "clima_sync - Forca consulta\n";
     answerAll(message);
   }
   else if (command == "desliga")
@@ -182,6 +174,25 @@ void CommandProcessor::executeCommand(String command)
                 "Uptime Atual: " + String(millis() / 1000) + " s\n"
                 "========================\n";
       answerAll(message);
+  }
+  else if (command == "wifi_list") {
+    String ssids;
+    for (uint8_t slot = 0; slot < 5; ++slot) {
+      const String ssid = gateway_.savedSsid(slot);
+      if (ssid.length() > 0) ssids += ssid + "\n";
+    }
+    answerAll(ssids.length() ? ssids : String("\n"));
+  }
+  else if (command.startsWith("wifi_add:")) {
+    const int separator = command.indexOf('|', 9);
+    String error;
+    if (separator < 0) {
+      answerAll("Use wifi_add:SSID|SENHA (senha vazia para rede aberta)\n");
+    } else if (!gateway_.addWifiProfile(command.substring(9, separator), command.substring(separator + 1), error)) {
+      answerAll("Falha ao salvar rede: " + error + "\n");
+    } else {
+      answerAll("Rede salva na lista circular. Use reboot para procurar as redes.\n");
+    }
   }
   else if (command == "reset_wifi")
   {

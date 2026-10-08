@@ -24,9 +24,17 @@ DisplayUtil::DisplayUtil() {
 void DisplayUtil::begin() {
     // SPI por software nos pinos fixos do LCD desta placa.
     Arduino_DataBus* bus = new Arduino_SWSPI(TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI);
-    gfx = new Arduino_ST7735(bus, TFT_RST, 0, TFT_IPS, TFT_WIDTH, TFT_HEIGHT,
+    panel = new Arduino_ST7735(bus, TFT_RST, 0, TFT_IPS, TFT_WIDTH, TFT_HEIGHT,
                              TFT_OFFSET_X, TFT_OFFSET_Y, TFT_OFFSET_X, TFT_OFFSET_Y);
-    gfx->begin();
+    panel->begin();
+    panel->setRotation(0);
+    gfx = new Arduino_Canvas(TFT_WIDTH, TFT_HEIGHT, panel);
+    if (!gfx->begin()) {
+        // Allocation fallback: retain display operation if RAM is insufficient.
+        delete gfx;
+        gfx = panel;
+        Serial.println("[DISPLAY] Canvas unavailable; using direct rendering.");
+    }
     gfx->setTextWrap(false);
     gfx->setRotation((1 + DISPLAY_ROTATION_OFFSET) % 4); 
     clear();
@@ -63,6 +71,7 @@ void DisplayUtil::showClock(String dateTime) {
     if (dateTime.length() < 19 || dateTime == "Erro ao obter data e hora") {
         gfx->setCursor(10, 48); gfx->print("Aguardando NTP");
         gfx->setCursor(10, 64); gfx->print("Verifique o WiFi");
+        gfx->flush();
         return;
     }
     int separator = dateTime.indexOf(' ');
@@ -85,6 +94,7 @@ void DisplayUtil::showClock(String dateTime) {
     gfx->fillRect(4, 118, 120, 3, COLOR_GRAY);
     gfx->fillRect(4, 118, hora.substring(6,8).toInt()*120/59, 3, COLOR_CYAN);
     ultimaHora = hora; ultimaData = data;
+    gfx->flush();
 }
 
 void DisplayUtil::desenharMatrixScreensaver() {
@@ -102,6 +112,7 @@ void DisplayUtil::desenharMatrixScreensaver() {
         gfx->print((char)random(33, 126)); 
     }
     delay(10); 
+    gfx->flush();
 }
 
 void DisplayUtil::print(String text) { println(text); }
@@ -137,9 +148,10 @@ void DisplayUtil::redraw() {
         else { gfx->setTextColor(0xCE79); gfx->setCursor(12, y); }
         gfx->println(lines[i]); y += lineHeight;
     }
+    gfx->flush();
 }
 
-Arduino_GFX* DisplayUtil::getDisplay() { return gfx; }
+Arduino_GFX* DisplayUtil::getDisplay() { return panel; }
 
 void DisplayUtil::showStatusPage(bool synced, const String& dateTime, int32_t offset, bool dst) {
  clear(); gfx->setTextSize(1); gfx->setTextColor(COLOR_CYAN);
@@ -154,6 +166,7 @@ void DisplayUtil::showStatusPage(bool synced, const String& dateTime, int32_t of
   gfx->setCursor(4,94); gfx->print(dateTime.substring(0,10));
   gfx->setCursor(4,108); gfx->print(dateTime.substring(11));
  }
+    gfx->flush();
 }
 void DisplayUtil::showNetworkPage() {
  clear(); gfx->setTextSize(1); gfx->setTextColor(COLOR_CYAN);
@@ -167,12 +180,14 @@ void DisplayUtil::showNetworkPage() {
  gfx->setCursor(4,80); if (connected) gfx->printf("RSSI: %d dBm", WiFi.RSSI());
  gfx->setCursor(4,94); gfx->print(WiFi.macAddress());
  gfx->setCursor(4,108); gfx->print("UDP: 4210 / Web: 80");
+    gfx->flush();
 }
 
 void DisplayUtil::showHoldMessage(const String& line1, const String& line2, uint16_t color) {
  clear(); gfx->setTextSize(1); gfx->setTextColor(color);
  gfx->setCursor(4,44); gfx->print(line1.substring(0,20));
  gfx->setCursor(4,64); gfx->print(line2.substring(0,20));
+    gfx->flush();
 }
 void DisplayUtil::showSystemPage() {
  clear(); gfx->setTextSize(1); gfx->setTextColor(COLOR_CYAN);
@@ -184,6 +199,7 @@ void DisplayUtil::showSystemPage() {
  gfx->setCursor(4,80); gfx->printf("Flash: %u MB",ESP.getFlashChipSize()/1024/1024);
  gfx->setCursor(4,94); gfx->printf("Firmware: %u KB",ESP.getSketchSize()/1024);
  gfx->setCursor(4,108); gfx->printf("Ligado: %lu s",(unsigned long)(millis()/1000));
+    gfx->flush();
 }
 void DisplayUtil::showSavedWifiPage(const String ssids[5], int connectedSlot, uint8_t nextSlot) {
  clear(); gfx->setTextSize(1); gfx->setTextColor(COLOR_CYAN);
@@ -194,6 +210,7 @@ void DisplayUtil::showSavedWifiPage(const String ssids[5], int connectedSlot, ui
  }
  gfx->setTextColor(COLOR_CYAN); gfx->setCursor(4,110);
  gfx->print("Proximo slot: "+String(nextSlot+1));
+    gfx->flush();
 }
 
 void DisplayUtil::drawWifiSignal() {
@@ -217,11 +234,13 @@ void DisplayUtil::drawWifiSignal() {
         low = center - 4; high = center + 4;
     }
     const int active = connected ? constrain(1 + (constrain(rssi, low, high) - low) * 4 / (high - low + 1), 1, 4) : 0;
+    // Cor e quantidade acompanham a mesma escala de variacao recente.
+    const uint16_t signalColor = active <= 1 ? 0xF800 : (active == 2 ? 0xFFE0 : COLOR_GREEN);
     const int x = gfx->width() - 22;
     gfx->fillRect(x, 1, 20, 14, backgroundColor);
     for (int bar = 0; bar < 4; ++bar) {
         const int height = (bar + 1) * 3;
-        if (bar < active) gfx->fillRect(x + bar * 5, 14 - height, 3, height, COLOR_GREEN);
+        if (bar < active) gfx->fillRect(x + bar * 5, 14 - height, 3, height, signalColor);
         else gfx->drawRect(x + bar * 5, 14 - height, 3, height, COLOR_GRAY);
     }
 }
@@ -251,4 +270,45 @@ void DisplayUtil::drawWifiHistory() {
         const int y2 = y + height - 1 - map(b, low, high, 0, height - 1);
         gfx->drawLine(x1, y1, x2, y2, COLOR_GREEN);
     }
+}
+
+void DisplayUtil::showMonitorPage(const NetworkMonitor& m) {
+ clear(); gfx->setTextSize(1); gfx->setTextColor(COLOR_CYAN);
+ gfx->setCursor(4,4); gfx->print("MONITOR REDE"); drawWifiSignal();
+ gfx->setTextColor(COLOR_WHITE); gfx->setCursor(4,20);
+ gfx->print(m.connected ? WiFi.gatewayIP().toString() : "WiFi desconectado");
+ gfx->setCursor(4,32);
+ if(!m.connected) gfx->print("Ping: sem rede");
+ else if(!m.hasResult) gfx->print("Ping: aguardando");
+ else if(m.replied) gfx->printf("Ping: %lu ms",(unsigned long)m.rtt);
+ else gfx->print("Ping: sem resposta");
+ gfx->setCursor(4,44); gfx->printf("Quedas:%lu Falha:%lu%%",(unsigned long)m.drops,
+ (unsigned long)(m.attempts ? uint64_t(m.failures)*100/m.attempts : 0));
+ gfx->setCursor(4,56); gfx->printf("Offline: %lu s",(unsigned long)m.offlineSeconds());
+ int peak=10; for(int v:m.history) if(v>peak) peak=v;
+ gfx->drawFastHLine(4,88,120,COLOR_GRAY);
+ for(int i=0;i<24;i++) {
+  int v=m.history[(m.head+i)%24], x=4+i*5;
+  if(v==-1) gfx->drawFastVLine(x,68,20,0xF800);
+  else if(v>=0) gfx->drawFastVLine(x,88-max(1,v*20/peak),max(1,v*20/peak),COLOR_GREEN);
+ }
+ for(int i=0;i<3;i++){gfx->setCursor(4,94+i*10);gfx->print(m.events[i].substring(0,20));}
+ gfx->flush();
+}
+void DisplayUtil::showForecastPage() {
+ clear(); gfx->setTextSize(1); gfx->setTextColor(COLOR_CYAN);
+ gfx->setCursor(4,4); gfx->print("PREVISAO HOJE"); drawWifiSignal();
+ gfx->setTextColor(COLOR_WHITE); gfx->setCursor(4,22);gfx->print("Porto Alegre - RS");
+ if(!ClimaManager::previsaoValida) {
+  gfx->setCursor(4,48);gfx->print("Aguardando previsao");
+ } else {
+  gfx->setCursor(4,36);gfx->print(ClimaManager::dataPrevisao);
+  gfx->setTextColor(COLOR_CYAN);gfx->setCursor(4,54);gfx->printf("Minima: %.1f C",ClimaManager::minima);
+  gfx->setTextColor(0xFFE0);gfx->setCursor(4,70);gfx->printf("Maxima: %.1f C",ClimaManager::maxima);
+  gfx->setTextColor(COLOR_GREEN);gfx->setCursor(4,86);gfx->printf("Chuva: %d%%",ClimaManager::chuva);
+  gfx->setTextColor(COLOR_WHITE);gfx->setCursor(4,104);
+  gfx->printf("Ha %lu min",(unsigned long)((millis()-ClimaManager::previsaoAtualizada)/60000));
+  gfx->setCursor(4,116);gfx->print(WiFi.status()==WL_CONNECTED ? "Max. diaria de chuva" : "Offline: dado salvo");
+ }
+ gfx->flush();
 }
