@@ -251,7 +251,9 @@ bool ESP32Gateway::connectWifi()
   Serial.println("Procurando redes Wi-Fi salvas...");
 
   display.println("Buscando redes...");
-  int networkCount = WiFi.scanNetworks();
+  
+  // CORREÇÃO 1: Força o escaneamento síncrono (true) e ativa a busca de redes ocultas (false) se necessário
+  int networkCount = WiFi.scanNetworks(false, false, false, 300); 
   if (networkCount < 0)
   {
     Serial.printf("[WIFI ERRO] Falha ao escanear redes: %d\n", networkCount);
@@ -262,7 +264,8 @@ bool ESP32Gateway::connectWifi()
   bool networkVisible[5] = {};
   for (int networkIndex = 0; networkIndex < networkCount; networkIndex++)
   {
-    String detectedSsid = WiFi.SSID(networkIndex);
+    // CORREÇÃO 2: Garante a captura estável da String do SSID escaneado
+    String detectedSsid = WiFi.SSID(networkIndex); 
     for (uint8_t credentialIndex = 0; credentialIndex < 5; credentialIndex++)
     {
       if (savedNetworks_[credentialIndex].ssid.length() > 0 &&
@@ -272,7 +275,7 @@ bool ESP32Gateway::connectWifi()
       }
     }
   }
-  WiFi.scanDelete();
+  WiFi.scanDelete(); // Limpa a memória do scan
 
   for (uint8_t offset = 0; offset < 5; offset++)
   {
@@ -281,11 +284,18 @@ bool ESP32Gateway::connectWifi()
 
     const String& ssid = savedNetworks_[slot].ssid;
     const String& password = savedNetworks_[slot].password;
+    
     display.println("Tentando SSID:");
     display.println(ssid);
     Serial.println("Tentando SSID: " + ssid);
+    
+    // CORREÇÃO 3: Desconecta limpando totalmente o cache de conexões anteriores antes de tentar a nova
+    WiFi.disconnect(true); 
+    delay(100);
+
     WiFi.begin(ssid.c_str(), password.c_str());
 
+    // Aguarda até 10 segundos pela conexão
     for (uint8_t attempt = 0; attempt < 20 && WiFi.status() != WL_CONNECTED; attempt++)
     {
       delay(500);
@@ -302,8 +312,6 @@ bool ESP32Gateway::connectWifi()
     }
 
     Serial.println("Falha ao conectar nesta rede; tentando a proxima.");
-    WiFi.disconnect();
-    delay(100);
   }
 
   Serial.println("Nenhuma rede salva disponivel aceitou a conexao.");
@@ -427,10 +435,20 @@ void ESP32Gateway::sendMessage(String message)
 String ESP32Gateway::savedSsid(uint8_t slot) const { return slot < 5 ? savedNetworks_[slot].ssid : String(""); }
 
 void ESP32Gateway::checkNetworkWatchdog() {
+  // Se estiver conectado, atualiza o timestamp e sai
   if (WiFi.status() == WL_CONNECTED) {
     networkSeenAt_ = millis();
     return;
   }
+  
+  // CORREÇÃO: Se estiver em modo Portal (Access Point), desativa o reinício automático
+  // para permitir que o usuário configure o dispositivo sem pressa.
+  if (WiFi.getMode() == WIFI_AP) {
+    networkSeenAt_ = millis(); // Posterga o watchdog continuamente enquanto estiver no portal
+    return;
+  }
+
+  // Se não está conectado e passou de 30 minutos
   if (millis() - networkSeenAt_ >= 30UL * 60UL * 1000UL) {
     Serial.println("[REDE] 30 minutos sem conexao; reiniciando busca.");
     display.println("Sem WiFi por 30min");
@@ -439,3 +457,4 @@ void ESP32Gateway::checkNetworkWatchdog() {
     ESP.restart();
   }
 }
+

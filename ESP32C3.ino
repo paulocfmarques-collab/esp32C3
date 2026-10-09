@@ -25,6 +25,53 @@ CommandProcessor commandProcessor(display, gateway, ntp, rgbLed);
 bool otaInicializadoCompleto = false;
 uint32_t tempoUltimoComando = 0; // Monitor de ociosidade
 
+// Recebe uma linha sem esperar por timeout. LF, CR e CRLF sao aceitos.
+// Em caso de excesso, descarta a linha inteira para nao executar um prefixo.
+bool receiveSerialCommand(String& command)
+{
+  constexpr size_t MAX_COMMAND_LENGTH = 256;
+  constexpr uint8_t MAX_BYTES_PER_LOOP = 64;
+  static char buffer[MAX_COMMAND_LENGTH + 1];
+  static size_t length = 0;
+  static bool overflow = false;
+
+  for (uint8_t count = 0; count < MAX_BYTES_PER_LOOP && Serial.available() > 0; ++count)
+  {
+    const int incoming = Serial.read();
+    if (incoming < 0) break;
+    const char ch = static_cast<char>(incoming);
+    if (ch == '\r' || ch == '\n')
+    {
+      if (overflow)
+      {
+        Serial.println("[SERIAL ERRO] Comando excede 256 caracteres; linha descartada.");
+        length = 0;
+        overflow = false;
+        continue;
+      }
+      if (length == 0) continue;
+      buffer[length] = '\0';
+      command = buffer;
+      length = 0;
+      command.trim();
+      if (command.length() > 0) return true;
+    }
+    else if (!overflow)
+    {
+      if (ch == '\b' || ch == 127)
+      {
+        if (length > 0) --length;
+      }
+      else if (static_cast<uint8_t>(ch) >= 32)
+      {
+        if (length < MAX_COMMAND_LENGTH) buffer[length++] = ch;
+        else overflow = true;
+      }
+    }
+  }
+  return false;
+}
+
 void clearSavedSettings() {
   bool success = true;
   for (const char* name : {"wifi", "ntp_cfg"}) {
@@ -44,6 +91,7 @@ void setup()
 {
   Serial.begin(115200);
   delay(100); 
+  Serial.println("[SERIAL] Comandos a 115200 baud. Use Nova linha ou CRLF; digite help.");
   pinMode(USER_BUTTON_PIN, INPUT_PULLUP);
   pinMode(PAGE_BUTTON_PIN, INPUT_PULLUP);
   pinMode(BOOT_BUTTON_PIN, INPUT_PULLUP);
@@ -166,15 +214,17 @@ void loop()
     otaInicializadoCompleto = true;
   }
 
-  // Se receber comando UDP, zera o temporizador do Screensaver e acorda o display
-  if (gateway.receiveCommand(comando))
+  // Serial e UDP usam o mesmo processador e acordam o display.
+  auto processCommand = [&](const String& receivedCommand)
   {
     display.setRotation(1); // Console: 90 degrees clockwise from its previous orientation.
     showingDashboard = false;
-    commandProcessor.executeCommand(comando);
+    commandProcessor.executeCommand(receivedCommand);
     responseUntil = millis() + 10000;
     tempoUltimoComando = millis(); // Reseta Protetor de Tela
-  }
+  };
+  if (receiveSerialCommand(comando)) processCommand(comando);
+  if (gateway.receiveCommand(comando)) processCommand(comando);
 
   commandProcessor.update();
 

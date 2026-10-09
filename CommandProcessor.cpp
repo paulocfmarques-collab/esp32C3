@@ -129,12 +129,18 @@ void CommandProcessor::executeCommand(String command)
   else if (command == "clima_sync")
   {
     answerAll("Forcando atualizacao manual do clima...\n");
-    // Zera o timer interno para burlar a trava de 15 minutos
-    ClimaManager::ultimaAtualizacao = 0; 
-    ClimaManager::atualizar();
-    
-    message = "Clima Atualizado ->\nTemp: " + String(ClimaManager::temperatura, 1) + 
-              " C\nCondicao: " + ClimaManager::obterTextoCondicao() + "\n";
+    if (!ClimaManager::atualizar(true)) {
+      answerAll("Falha ao atualizar clima: " + ClimaManager::ultimoErro + "\n");
+      if (ClimaManager::sincronizado)
+        answerAll("Dados anteriores preservados. Use clima_age para consultar a idade.\n");
+      return;
+    }
+    message = "Clima Atualizado ->\nTemp: " + String(ClimaManager::temperatura, 1) +
+              " C\nCondicao: " + ClimaManager::obterTextoCondicao() +
+              "\nData: " + ClimaManager::dataPrevisao +
+              "\nMinima: " + String(ClimaManager::minima, 1) +
+              " C\nMaxima: " + String(ClimaManager::maxima, 1) +
+              " C\nProb. chuva: " + String(ClimaManager::chuva) + "%\n";
     answerAll(message);
   }
   
@@ -476,6 +482,10 @@ void CommandProcessor::executeCommand(String command)
   }
   else if (command == "clima")
   {
+      if (!ClimaManager::sincronizado) {
+          answerAll("Clima sem dados. Use clima_sync.\n" + ClimaManager::ultimoErro + "\n");
+          return;
+      }
       message = "===== CLIMA =====\n"
                 "Temperatura: " +
                 String(ClimaManager::temperatura, 1) +

@@ -1,24 +1,29 @@
 #include "NetworkMonitor.h"
 #include "lwip/ip_addr.h"
+
 void NetworkMonitor::begin() {
  for(int &value:history) value=-2;
  tickAt=offlineAt=millis(); connected=WiFi.status()==WL_CONNECTED;
  initialized=true; event(connected ? "WiFi conectado" : "Sem conexao");
 }
+
 void NetworkMonitor::event(const String& text) {
  events[2]=events[1]; events[1]=events[0];
  events[0]=String(millis()/60000)+"m "+text;
 }
+
 void NetworkMonitor::onSuccess(esp_ping_handle_t h,void* arg) {
  auto* self=static_cast<NetworkMonitor*>(arg); uint32_t ms=0;
  esp_ping_get_profile(h,ESP_PING_PROF_TIMEGAP,&ms,sizeof(ms));
  portENTER_CRITICAL(&self->mux); self->success=true; self->elapsed=ms;
  portEXIT_CRITICAL(&self->mux);
 }
+
 void NetworkMonitor::onEnd(esp_ping_handle_t,void* arg) {
  auto* self=static_cast<NetworkMonitor*>(arg);
  portENTER_CRITICAL(&self->mux); self->done=true; portEXIT_CRITICAL(&self->mux);
 }
+
 void NetworkMonitor::update() {
  if(!initialized) begin();
  uint32_t now=millis(); bool online=WiFi.status()==WL_CONNECTED;
@@ -30,6 +35,7 @@ void NetworkMonitor::update() {
   else event("WiFi voltou");
   connected=online; hasResult=false; nextAt=now;
  }
+
  bool finished, ok; uint32_t ms;
  portENTER_CRITICAL(&mux); finished=done; ok=success; ms=elapsed; portEXIT_CRITICAL(&mux);
  if(session && finished) {
