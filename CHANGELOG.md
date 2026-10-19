@@ -1,10 +1,42 @@
 # Changelog
 
+## 2026-10-31 — Reset dos contadores NVS
+
+- Adicionado `reset_counters` para zerar boot/watchdog no namespace `telemetry`
+  sem apagar as configurações Prometheus.
+- Atualizados o menu `help`, o guia de comandos e o catálogo consolidado.
+
 Registro consolidado das alterações do firmware ESP32-C3.
+
+## 2026-10-18 — Protetor e revisão documental
+
+- Documentado `name`, que retorna `ESP32C3` para identificação da placa.
+- Revisado o desenho do protetor com olhos e bocas sem carcaça, dez expressões
+  de referência e expressões adicionais; início após 15 minutos sem interação.
+  Alteração de fonte registrada em `5ee4231`.
+- Guia de comandos atualizado para distinguir navegação por botões e handlers
+  realmente disponíveis; não há comandos de brilho/páginas herdados do C6.
+- Mantido `crash_info` por USB/UDP: apaga após leitura bem-sucedida, sem SD,
+  conforme evolução registrada em `c9172af`.
+- Referência comum: [histórico ESP32](../../ESP32_Documents/changelog.md).
+  A revisão documental não confirma teste físico do firmware.
 
 ## [Unreleased]
 
 ### Added
+
+- Prometheus em `/metrics`, na porta configurada e salva (padrao 9120),
+  mantendo o painel HTTP na porta 80 em STA e AP.
+- Configuracao web em `/prometheus`, endereco de referencia do servidor,
+  intervalo sugerido e download `/prometheus.yml`; persistencia no namespace
+  `telemetry`, com validacao e erros HTTP 400/503.
+- Metricas reais de identificacao, disponibilidade, Wi-Fi, CPU, memoria,
+  tarefas, flash, botoes, LED e HTTP; contadores persistentes de boot/watchdog.
+- `esp_cpu_temperature_celsius` para a temperatura interna do chip e
+  `esp_weather_data_age_seconds` para a idade do ultimo cache de clima valido,
+  com timer monotono de 64 bits e sem resetar a idade em consultas com falha.
+- Catalogo e roteiro de verificacao em `PROMETHEUS.md`, incluindo as series
+  omitidas por ausencia de sensores, reles, ADC ou cliente MQTT.
 
 - Renderização em buffer de 32 KB e páginas de relógio, estado, rede, sistema e
   redes salvas; rotas HTTP `/info` e `/wifi`.

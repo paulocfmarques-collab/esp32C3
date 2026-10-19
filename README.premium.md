@@ -15,6 +15,8 @@ O **ESP32-C3 Gateway** é um firmware embarcado para ESP32-C3 com display TFT, p
 
 - Interface visual com páginas de relógio, rede, sistema e status
 - Portal de configuração Wi‑Fi com múltiplas redes
+- Prometheus por coleta HTTP na porta configurada, com painel na porta 80 e
+  preferencias persistentes; [catalogo e configuracao](PROMETHEUS.md)
 - Comandos UDP para operação remota
 - Sincronização NTP com fuso e DST persistidos
 - Clima atualizado via rede

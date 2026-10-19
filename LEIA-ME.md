@@ -4,9 +4,25 @@ See [README.md](README.md) for installation, hardware, commands, controls, and l
 
 1. Open `ESP32C3.ino` with all source files in the same folder.
 2. Install the ESP32 3.x board package and GFX Library for Arduino.
-3. Select ESP32C3 Dev Module and an OTA-compatible partition layout; upload over USB.
+3. Select ESP32C3 Dev Module and **Minimal SPIFFS (1.9MB APP with OTA/128KB SPIFFS)** (at least 4 MB flash), or a larger OTA-compatible layout; upload over USB. The default 1.25 MiB application partition is too small.
 4. Join `ESP32_C3_CONFIG` and open `http://192.168.4.1` to save Wi-Fi credentials.
 5. Send `help` to the device IP on UDP port 4210.
+
+## Prometheus
+
+Abra `http://IP_DO_ESP32/prometheus` e salve o endereco do servidor, a porta
+de metricas do ESP32 (padrao 9120) e o intervalo sugerido. As configuracoes
+persistem nas Preferences/NVS. O painel continua na **porta 80**.
+
+O Prometheus coleta `http://IP_DO_ESP32:PORTA/metrics`; nao ha envio ativo.
+Baixe o YAML da pagina e aplique no servidor. Somente metricas com fontes reais
+sao publicadas; energia, bateria, sensores ambientais, reles, ADC e MQTT ficam
+omitidos ate terem integracao. A limpeza de Wi-Fi/BOOT preserva `telemetry`.
+Consulte [PROMETHEUS.md](PROMETHEUS.md) para detalhes e verificacao na placa.
+
+Tambem sao publicadas a temperatura interna da CPU
+(`esp_cpu_temperature_celsius`, quando a leitura e valida) e a idade do cache
+de clima (`esp_weather_data_age_seconds`, somente apos sincronizacao valida).
 
 Five Wi-Fi profiles are stored persistently in a circular list. At startup, visible saved networks are tried before the AP fallback.
 

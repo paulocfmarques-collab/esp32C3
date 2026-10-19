@@ -1,37 +1,31 @@
-# ESP32-C3 Gateway
+<<<<<<< HEAD
+# ESP32-C3 Wi-Fi Gateway
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-ESP32--C3%20%7C%20Arduino-ff6f00.svg)
-![Language](https://img.shields.io/badge/language-C%2B%2B-00599C.svg)
-![License](https://img.shields.io/badge/license-Unlicensed-lightgrey.svg)
-![Status](https://img.shields.io/badge/status-active-success.svg)
+**A compact network gateway with a 1.44-inch display, persistent Wi-Fi profiles, UDP commands, and OTA updates.**
 
-Gateway para **ESP32-C3** com display TFT 1.44", portal Wi-Fi, console UDP, NTP, clima, OTA e feedback visual por LED monocromático.
+[Quick start](#quick-start) · [Wi-Fi profiles](#wi-fi-profiles) · [Commands](#udp-command-reference) · [Hardware](#hardware) · [Changelog](CHANGELOG.md)
 
-> Ideal para automação embarcada, dashboards locais, controle remoto de rede e monitoramento rápido do dispositivo.
+## Overview
 
-## Visão geral
+This firmware targets an **ESP32-C3 board with a 128 × 128 ST7735 TFT and a single-color status LED**. It combines local monitoring with browser-based configuration and a lightweight UDP command interface.
 
-Este firmware foi feito para uma placa **ESP32-C3 com TFT ST7735 de 128 × 128 e LED de status monocromático**. Ele combina monitoramento local com configuração via navegador e comandos UDP leves.
-
-### Funcionalidades
-
-| Recurso | Implementação |
+| Capability | Implementation |
 |---|---|
-| Wi-Fi | Até cinco perfis persistentes de SSID/senha em lista circular |
-| Conexão inicial | Varre redes salvas, tenta correspondências visíveis e cai para AP se necessário |
-| Interface web | Informações do dispositivo em `/info` e gerenciamento Wi-Fi em `/wifi` |
-| Interface local | Páginas de relógio, status, rede, sistema e redes salvas |
-| Monitor de sinal | Barras adaptativas de RSSI e histórico visual do sinal |
-| Tempo | NTP, fuso UTC configurável, DST e ajuste manual |
-| Clima | Condições atuais via Open-Meteo para Porto Alegre |
-| Controle remoto | Comandos UDP na porta 4210 |
-| Atualização | ArduinoOTA via Wi-Fi |
-| Economia de energia | Deep sleep pelo comando `desliga` |
+| Wi-Fi configuration | Five persistent SSID/password profiles in a circular list |
+| Startup connection | Scans for saved networks, tries visible matches, falls back to AP |
+| Web interface | Device information at `/info`; profile management at `/wifi` |
+| Prometheus | `/prometheus` settings on port 80; `/metrics` on the saved port (default 9120) |
+| Local interface | Clock, status, network, system, and saved-profile pages |
+| Signal monitoring | Adaptive signal bars and a thin RSSI history trace |
+| Timekeeping | NTP, configurable UTC offset, daylight-saving adjustment, manual setting |
+| Weather | Open-Meteo current conditions for Porto Alegre |
+| Remote control | UDP commands on port 4210 |
+| Firmware updates | ArduinoOTA over Wi-Fi |
+| Power management | Deep sleep through the `desliga` command |
 
-A implementação **não inclui Ethernet, SD, PSRAM nem LED RGB**. O nome histórico da classe `RGBLed` foi mantido, mas ela controla o LED monocromático da placa.
+The implementation does not include Ethernet, SD storage, PSRAM commands, or an RGB LED. The historical `RGBLed` class name remains, but controls the board's single-color LED.
 
-## Arquitetura
+## Architecture
 
 ```mermaid
 flowchart TD
@@ -55,7 +49,7 @@ flowchart TD
     Q --> D
 ```
 
-## Fluxo de interação
+## Interaction flow
 
 ```mermaid
 sequenceDiagram
@@ -80,73 +74,100 @@ sequenceDiagram
 
 ## Quick start
 
-1. Coloque `ESP32C3.ino` e todos os arquivos `.h` e `.cpp` na mesma pasta chamada `ESP32C3`.
-2. Instale **ESP32 by Espressif Systems 3.x** no Arduino IDE.
-3. Instale **GFX Library for Arduino (Arduino_GFX)**.
-4. Selecione **ESP32C3 Dev Module** e a porta serial correta. Ative **USB CDC On Boot** se for usar o monitor serial via USB nativo.
-5. Selecione o tamanho de flash compatível com sua placa e um esquema de partições com OTA. O esquema atual usa um chip W25Q128 de 16 MB; confirme a revisão física da placa.
-6. Compile e faça upload via USB. Use **115200 baud** no monitor serial.
+1. Keep `ESP32C3.ino` and all accompanying `.h` and `.cpp` files in a directory named `ESP32C3`.
+2. Install **esp32 by Espressif Systems 3.x** in Arduino IDE.
+3. Install **GFX Library for Arduino (Arduino_GFX)**.
+4. Select **ESP32C3 Dev Module** and the correct serial port. Enable **USB CDC On Boot** when using the native USB serial monitor.
+5. Select the flash size that matches your board and **Minimal SPIFFS (1.9MB APP with OTA/128KB SPIFFS)**, or a larger OTA-compatible layout. The firmware with Prometheus exceeds the default 1.25 MiB application partition. Minimal SPIFFS requires at least 4 MB flash. The supplied schematic identifies a 16 MB W25Q128 device; verify the physical board revision.
+6. Build and upload over USB. Set the serial monitor to **115200 baud**.
 
-As bibliotecas de Wi-Fi, HTTP, Preferences, NTP e OTA já vêm no pacote ESP32. `SdFat` e `Adafruit_NeoPixel` não são necessários.
+Wi-Fi, HTTP, Preferences, NTP, and OTA libraries are provided by the ESP32 board package. SdFat and Adafruit_NeoPixel are not required.
 
-### Primeira conexão
+### First connection
 
-Se nenhuma rede salva conectar, entre em **ESP32_C3_CONFIG** e abra **http://192.168.4.1**. Salve as credenciais da sua rede; o dispositivo reinicia e tenta conectar novamente.
+If no saved network connects, join **ESP32_C3_CONFIG** and open **http://192.168.4.1**. Save your network credentials; the device restarts and searches for saved networks.
 
-Depois de conectado, use o IP mostrado no display:
+Once connected, use the IP shown on the display:
 
-- `http://DEVICE_IP/info` — informações do dispositivo e da rede.
-- `http://DEVICE_IP/wifi` — perfis salvos e cadastro de redes.
+- `http://DEVICE_IP/info` — device and network information.
+- `http://DEVICE_IP/wifi` — saved profiles and network registration.
+- `http://DEVICE_IP/prometheus` — persistent Prometheus server reference, metrics
+  port and scrape interval; download the server YAML.
 
-## Perfis Wi-Fi
+The Porto Alegre temperature metric includes `source="open_meteo"` and
+`location="porto_alegre"`, alongside the device identifier. Use this Grafana query:
 
-O dispositivo armazena até cinco SSIDs e senhas na flash persistente. Os novos perfis seguem a ordem **1 → 2 → 3 → 4 → 5 → 1**. Quando a lista está cheia, o próximo cadastro substitui o perfil mais antigo.
+```promql
+sensor_temperature_celsius{source="open_meteo",location="porto_alegre"}
+and on(instance, job) esp_info{model="$device"}
+```
 
-Na inicialização, o firmware escaneia as redes próximas e tenta os perfis salvos visíveis em ordem circular, com cerca de dez segundos por tentativa. Se nenhuma conectar, ele inicia o ponto de acesso de configuração.
+The humidity metric includes `location="porto_alegre"`. Use:
 
-Redes ocultas não são descobertas pela varredura atual. A troca entre SSIDs salvos acontece na inicialização, não durante a execução.
+```promql
+sensor_humidity_percent{location="porto_alegre"}
+and on(instance, job) esp_info{model="$device"}
+```
 
-## Display e controles
+The web interface stays on **port 80**. Prometheus pulls `/metrics` on the
+configured port (default **9120**); the device does not push to the server.
+Only real integrated readings are exported. See [PROMETHEUS.md](PROMETHEUS.md)
+for the metric catalog, unavailable hardware, NVS persistence and validation.
 
-A interface é rotacionada 90 graus no sentido anti-horário. Páginas auxiliares retornam ao relógio após 30 segundos; respostas UDP aparecem no console por dez segundos. O protetor de tela inicia após 15 minutos de inatividade.
+The exporter also provides internal CPU temperature (`esp_cpu_temperature_celsius`)
+and the age of the last valid weather cache (`esp_weather_data_age_seconds`).
+Weather age is omitted until the first successful update and keeps increasing
+after failed refreshes.
 
-| Controle | Ação |
+## Wi-Fi profiles
+
+The device stores up to five SSIDs and passwords in persistent flash storage. New profiles follow **1 → 2 → 3 → 4 → 5 → 1**. When the list is full, the next registration replaces the indicated slot. Registering an existing SSID updates its password without advancing the cursor.
+
+At startup, the firmware scans nearby networks and attempts visible saved profiles in circular order, allowing approximately ten seconds per connection attempt. If none connects, it starts the configuration AP. Profiles and the cursor survive restarts and deep sleep.
+
+Hidden networks are not discovered by the current scan. Switching between saved SSIDs is performed at startup, not continuously during operation.
+
+## Display and controls
+
+The interface is rotated 90 degrees counterclockwise. Auxiliary pages return to the clock after 30 seconds; UDP responses appear in the console for ten seconds. The screensaver starts after 15 minutes of inactivity.
+
+| Control | Action |
 |---|---|
-| Key1 · GPIO8 | Avança para a próxima página quando pressionado |
-| BOOT · GPIO9 | Avança para a próxima página quando pressionado |
-| Key2 · GPIO10 · toque curto | Avança para a próxima página ao soltar |
-| Key2 · 3 segundos, depois soltar | Reinicia |
-| Key2 · 10 segundos, depois soltar | Apaga os perfis Wi-Fi salvos e reinicia |
-| RESET | Reinicia, incluindo recuperação do deep sleep |
+| Key1 · GPIO8 | Advance to the next page when pressed |
+| BOOT · GPIO9 | Advance to the next page when pressed |
+| Key2 · GPIO10 · short press | Advance to the next page when released |
+| Key2 · hold 3 seconds, then release | Restart |
+| Key2 · hold 10 seconds, then release | Erase saved Wi-Fi profiles and restart |
+| RESET | Restart, including recovery from deep sleep |
 
-Não mantenha o botão BOOT pressionado ao ligar ou resetar: isso ativa o modo de download do firmware.
+Do not hold BOOT while powering on or resetting: it selects the firmware download mode.
 
-### Visualização do sinal
+### Signal visualization
 
-As barras de cabeçalho e o traço verde usam leituras reais de RSSI, amostradas aproximadamente uma vez por segundo. O histórico contém 50 amostras. A escala adaptativa tem amplitude mínima de 8 dBm para evidenciar variações pequenas.
+The header bars and green trace use actual RSSI readings, sampled approximately once per second. The history contains 50 samples. An adaptive scale with a minimum span of 8 dBm makes small changes visible. Bars indicate recent relative variation rather than an absolute connection-quality rating. Stable RSSI produces a stable display.
 
-## Referência de comandos UDP
+## UDP command reference
 
-Envie texto de comando para o IP do dispositivo na **porta UDP 4210**. As respostas retornam para o endereço e porta de origem. Os nomes dos comandos foram mantidos por compatibilidade com clientes existentes.
+Send command text to the device IP on **UDP port 4210**. Replies return to the sender's address and port. Command names remain unchanged for compatibility with existing clients.
 
-| Categoria | Comandos |
+| Category | Commands |
 |---|---|
-| Geral | `help`, `info`, `status`, `uptime`, `reason`, `version`, `build`, `alive` |
+| General | `help`, `info`, `status`, `uptime`, `reason`, `version`, `build`, `alive` |
 | Hardware | `temp`, `cpu`, `ram`, `flash`, `chip_info`, `health` |
-| Rede | `net_info`, `mac`, `rssi`, `ip`, `ssid`, `channel`, `wifi_status` |
-| Reset de rede | `reset_wifi` |
-| Tempo | `time`, `date`, `ntp_status`, `set_fuso:X`, `set_time:YYYY-MM-DD HH:MM:SS`, `dst_on`, `dst_off` |
+| Network | `net_info`, `mac`, `rssi`, `ip`, `ssid`, `channel`, `wifi_status` |
+| Network reset | `reset_wifi` |
+| Time | `time`, `date`, `ntp_status`, `set_fuso:X`, `set_time:YYYY-MM-DD HH:MM:SS`, `dst_on`, `dst_off` |
 | LED | `led_on`, `led_off`, `led_breath`, `led_pisca:P:I`, `led_blink:I` |
-| Clima | `clima`, `clima_age`, `clima_sync` |
-| Energia | `reboot`, `desliga` |
+| Weather | `clima`, `clima_age`, `clima_sync` |
+| Power | `reboot`, `desliga` |
 
-- `set_fuso:X`: fuso UTC de −12 a +14; padrão −3.
-- `set_time:2026-10-07 14:30:00`: define a hora local manualmente. O NTP pode substituir depois de uma nova sincronização.
-- `led_pisca:P:I`: 1–100 pulsos, com intervalo de 1–5000 ms.
-- `led_blink:I`: piscada contínua, com intervalo de 50–60000 ms.
-- `desliga`: entra em deep sleep até RESET ou ciclo de energia.
+- `set_fuso:X`: UTC offset from −12 to +14; default −3.
+- `set_time:2026-10-07 14:30:00`: set local time manually. NTP may replace it during a later synchronization.
+- `led_pisca:P:I`: 1–100 pulses, with an interval of 1–5000 milliseconds.
+- `led_blink:I`: continuous blinking, with an interval of 50–60000 milliseconds.
+- `desliga`: enter deep sleep until RESET or a power cycle.
 
-### Exemplo de cliente
+Example client:
 
 ```python
 import socket
@@ -162,67 +183,398 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client:
         pass
 ```
 
-Troque o IP de exemplo pelo endereço do dispositivo. Comandos como atualização do clima podem demorar mais do que o timeout do cliente.
+Replace the example IP with the device address. Commands such as weather refresh may take longer than this client's timeout.
 
-## Clima e OTA
+## Weather and OTA
 
-As coordenadas do clima são configuradas em `ClimaManager.h`. Uma sincronização bem-sucedida define intervalo de 15 minutos; enquanto não houver dados sincronizados, o firmware tenta novamente a cada um minuto. `clima_age` mostra há quanto tempo os dados foram atualizados.
+Weather coordinates are configured in `ClimaManager.h`. Successful synchronization selects a 15-minute interval; the unsynchronized state uses a one-minute retry interval. `clima_age` reports time since the last update attempt, not necessarily the last successful response.
 
-O OTA usa o hostname **ESP32-C3-Gateway** após a conexão Wi-Fi. Faça o primeiro upload via USB, use partições compatíveis com OTA e garanta que o computador consiga alcançar o dispositivo pela rede.
+OTA uses the hostname **ESP32-C3-Gateway** after Wi-Fi connects. Perform the initial upload over USB, use OTA-compatible partitions, and ensure the computer can reach the device over the network. Update progress appears on the display.
 
-## Deep sleep e bateria
+## Deep sleep and battery use
 
-`desliga` envia uma resposta, para o Wi-Fi e o LED, desliga o controlador do LCD e entra em deep sleep sem timer de wake-up. Os perfis salvos permanecem gravados. Acorde o dispositivo usando **RESET** ou um ciclo de energia.
+`desliga` sends a response, stops Wi-Fi and LED activity, turns off the LCD controller, and enters deep sleep without a wake timer. Saved profiles are retained. Wake the device using **RESET** or a power cycle.
 
-Key1, Key2 e BOOT não acordam esta implementação a partir do deep sleep. O **backlight permanece alimentado** porque está ligado diretamente em 3.3 V. O firmware reduz o consumo do processador, mas não desliga a iluminação da tela.
+Key1, Key2, and BOOT cannot wake this implementation from deep sleep. The display **backlight remains powered** because it is wired directly to 3.3 V. Firmware reduces processor consumption but does not remove power from the entire board. Turning off the backlight requires a hardware change; battery consumption must be measured on the actual board.
 
 ## Hardware
 
-| Sinal | GPIO |
+| Signal | GPIO |
 |---|---:|
 | LCD CS | 2 |
 | LCD DC | 0 |
 | LCD reset | 5 |
 | LCD MOSI | 4 |
 | LCD clock | 3 |
-| LED monocromático | 11 |
+| Single-color LED | 11 |
 | Key1 | 8 |
 | BOOT | 9 |
 | Key2 | 10 |
 | USB D− / D+ | 18 / 19 |
 
-O display usa SPI por software. `BoardConfig.h` define pinos, dimensões do painel, offsets e rotação. O painel atual usa offsets 2/3; revisões diferentes podem exigir ajuste.
+The display uses software SPI. `BoardConfig.h` defines pins, panel dimensions, offsets, and rotation. The current panel uses offsets 2/3; different revisions may require adjustment.
 
-## Estrutura do projeto
+## Project structure
 
-| Arquivo | Responsabilidade |
+| File | Responsibility |
 |---|---|
-| `ESP32C3.ino` | Inicialização, botões, navegação de páginas, loop principal |
-| `BoardConfig.h` | Configuração da placa e do display |
-| `ESP32Gateway.*` | Perfis Wi-Fi, rotas HTTP, comunicação UDP |
-| `CommandProcessor.*` | Despacho de comandos e diagnósticos |
-| `DisplayUtil.*` | Páginas e visualização de RSSI |
-| `NTPUtil.*` | Relógio, UTC offset e ajuste manual |
-| `ClimaManager.h` | Requisições de clima |
-| `OTAManager.h` | Tratamento de OTA |
-| `RGBLed.*` | Controle do LED monocromático |
+| `ESP32C3.ino` | Startup, button handling, page navigation, main loop |
+| `BoardConfig.h` | Board and display configuration |
+| `ESP32Gateway.*` | Wi-Fi profiles, HTTP routes, UDP communication |
+| `CommandProcessor.*` | Command dispatch and diagnostics |
+| `DisplayUtil.*` | Pages and RSSI visualization |
+| `NTPUtil.*` | Clock, UTC offset, manual adjustment |
+| `ClimaManager.h` | Weather requests |
+| `OTAManager.h` | OTA handling |
+| `RGBLed.*` | Single-color LED control |
 
-## Segurança e validação
+## Security and validation
 
-O AP é aberto; a configuração HTTP, os comandos UDP e o OTA não têm autenticação. O cliente HTTPS do clima usa `setInsecure()` e não valida certificados. Use em rede confiável.
+The AP is open; HTTP configuration, UDP commands, and OTA do not have authentication configured. The weather HTTPS client uses `setInsecure()` and does not validate certificates. Use a trusted network and assess these settings before exposing the device beyond it.
 
-A conexão Wi-Fi e o funcionamento do firmware foram confirmados em uma revisão anterior. Mudanças posteriores receberam revisão estática; ainda é recomendado compilar e testar em hardware antes de distribuir.
+Wi-Fi connection and firmware operation were confirmed by the user on an earlier revision. Later changes received static review; a complete build, hardware regression test, and current-consumption measurements have not been recorded for the latest package.
 
-Substitua o conjunto completo de fontes ao atualizar para evitar misturar headers e implementações incompatíveis.
+Replace the complete source set when upgrading to avoid mixing incompatible headers and implementations.
 
-## Contribuindo
+## Contributing
 
-Inclua a revisão da placa, a versão do pacote ESP32, as versões das bibliotecas, os passos para reproduzir e a saída completa de erro ao abrir uma issue. Remova senhas e informações privadas dos logs.
+Include the board revision, ESP32 package version, library versions, reproduction steps, and full error output when reporting an issue. Remove passwords and private information from logs.
 
-## Licença
+No license is assigned by this documentation. Follow the repository's actual license, if provided.
 
-Nenhuma licença foi definida ainda.
+## Network monitor and daily forecast
+
+Seven pages are available through K1 (next) and K2 (previous). The new network
+monitor reports Wi-Fi disconnects, cumulative offline time, the three latest
+connection events and 24 gateway ICMP results. An asynchronous one-shot ping runs
+approximately every five seconds with a one-second timeout. Red graph samples
+represent timeouts; green samples represent measured round-trip time. A gateway
+that filters ICMP may time out while Wi-Fi remains connected. These measurements
+do not test Internet availability. History is held in RAM and resets on reboot.
+
+The daily forecast page displays today's minimum and maximum temperature and
+maximum precipitation probability for Porto Alegre, Brazil. Open-Meteo data is
+refreshed with the existing weather service every 15 minutes. Valid cached data
+and its age remain visible after refresh failures; missing values are not shown
+as zero. Weather HTTP requests remain synchronous with three-second connection
+and read timeouts. Auxiliary pages return to the clock after 30 seconds.
+
+API references: [Espressif ICMP Echo](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-reference/protocols/icmp_echo.html)
+and [Open-Meteo Forecast API](https://open-meteo.com/en/docs).
+=======
+# ESP32-C3 Gateway
+
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
+![Platform](https://img.shields.io/badge/platform-ESP32--C3%20%7C%20Arduino-ff6f00.svg)
+![Language](https://img.shields.io/badge/language-C%2B%2B-00599C.svg)
+![License](https://img.shields.io/badge/license-Unlicensed-lightgrey.svg)
+![Status](https://img.shields.io/badge/status-active-success.svg)
+![Repo](https://img.shields.io/badge/GitHub-Ready-181717.svg?logo=github)
+
+Gateway for **ESP32-C3** with a 1.44" TFT display, Wi‑Fi portal, UDP console, NTP, weather, OTA, and visual feedback through an RGB LED. The project has been organized to be clearer on GitHub, with complete documentation and architecture diagrams.
+
+> Ideal for embedded automation, local dashboards, remote network control, and quick device monitoring.
+
+## Highlights
+
+- **1.44" TFT display** with clock, status, network, system, and saved networks pages
+- **Wi‑Fi portal** with up to 5 persistent networks and circular list management
+- **UDP console** for remote commands
+- **NTP with timezone and DST** persisted in flash
+- **Weather via Open-Meteo** with periodic updates
+- **RGB LED** with status indication, blink, and breathing effects
+- **OTA** when connected in station mode
+- **Physical buttons** for navigation and long-press actions
+- **Power-saving mode** with deep sleep via `desliga` command
+
+## System Overview
+
+# System Architecture
+
+```mermaid
+flowchart TD
+    A[Power Reset] --> B[ESP32-C3]
+
+    B --> C["1.44 TFT Display"]
+    B --> D[RGB LED]
+    B --> E[Wi-Fi STA AP]
+    B --> F[UDP Console]
+    B --> G[HTTP Portal]
+    B --> H[NTP]
+    B --> I[Weather]
+    B --> J[OTA]
+    B --> K[Physical Buttons]
+
+    E -->|Saved network| L[Automatic Connection]
+    E -->|No Network| M["AP ESP32_C3_CONFIG"]
+
+    G --> N["/info"]
+    G --> O["/wifi"]
+
+    F --> P[CommandProcessor]
+
+    H --> Q[Local Time]
+    I --> R[Temperature and Condition]
+
+    P --> D
+    P --> C
+```
+
+## Description
+
+- **ESP32-C3** is the central controller.
+- **TFT Display** shows status,
+
+## Module Architecture
+
+```mermaid
+classDiagram
+    class ESP32C3INO {
+      +setup()
+      +loop()
+    }
+
+    class DisplayUtil {
+      +begin()
+      +showClock()
+      +showStatusPage()
+      +showNetworkPage()
+      +showSystemPage()
+      +showSavedWifiPage()
+      +desenharRobotScreensaver()
+    }
+
+    class ESP32Gateway {
+      +begin()
+      +handleClient()
+      +receiveCommand()
+      +sendMessage()
+      +clearConfig()
+      +savedSsid()
+    }
+
+    class CommandProcessor {
+      +executeCommand()
+      +update()
+      +runHealth()
+    }
+
+    class NTPUtil {
+      +initNTP()
+      +getDateTime()
+      +getTimeOnly()
+      +updateConfiguration()
+      +adjustDateTime()
+    }
+
+    class RGBLed {
+      +begin()
+      +setColor()
+      +blink()
+      +breathing()
+    }
+
+    ESP32C3INO --> DisplayUtil
+    ESP32C3INO --> ESP32Gateway
+    ESP32C3INO --> CommandProcessor
+    ESP32C3INO --> NTPUtil
+    ESP32C3INO --> RGBLed
+    CommandProcessor --> ESP32Gateway
+    CommandProcessor --> DisplayUtil
+    CommandProcessor --> NTPUtil
+    CommandProcessor --> RGBLed
+```
+
+## Repository Structure
+
+```mermaid
+graph LR
+    A[ESP32C3.ino] --> B[ESP32Gateway.cpp/.h]
+    A --> C[CommandProcessor.cpp/.h]
+    A --> D[DisplayUtil.cpp/.h]
+    A --> E[NTPUtil.cpp/.h]
+    A --> F[RGBLed.cpp/.h]
+    A --> G[ClimaManager.h]
+    A --> H[OTAManager.h]
+    A --> I[BoardConfig.h]
+    A --> J[README.md]
+    A --> K[CHANGELOG.md]
+    A --> L[LEIA-ME.md]
+```
+
+## Features
+
+### Display Interface
+
+- Main clock screen with date, time, and visual progress
+- Status page with CPU, RAM, uptime, and NTP
+- Network page with SSID, IP, channel, RSSI, and MAC
+- System page with chip, memory, and firmware
+- Saved networks page with active slot and connected network
+- Console screen for command responses
+- Full-screen robot eyes and mouths after 15 minutes of inactivity: the ten reference faces in image order (cyan, with pink anger and hearts), followed by 30 extra expressions in rotating colors. Expressions change every four seconds, with blinking and small movements, on a black background without text or robot shells.
+
+### Connectivity
+
+- Automatic connection to the best available saved network
+- Fallback to AP mode: `ESP32_C3_CONFIG`
+- HTTP server with:
+  - `/info`
+  - `/wifi`
+- UDP command reception
+- OTA updates when connected in STA mode
+
+### Power and Operation
+
+- `desliga` puts the device into deep sleep
+- LED indicates operating states
+- Physical buttons enable navigation and critical actions
+
+## UDP Commands
+
+### System
+
+- `help`
+- `info`
+- `status`
+- `uptime`
+- `reason`
+- `version`
+- `build`
+- `alive`
+- `reboot`
+- `desliga`
+- `temp`
+- `cpu`
+- `ram`
+- `flash`
+- `chip_info`
+- `health`
+
+### Network
+
+- `net_info`
+- `mac`
+- `reset_wifi`
+- `rssi`
+- `ip`
+- `ssid`
+- `channel`
+- `wifi_status`
+
+### Time
+
+- `time`
+- `date`
+- `ntp_status`
+- `set_fuso:X`
+- `set_time:YYYY-MM-DD HH:MM:SS`
+- `dst_on`
+- `dst_off`
+
+### LED
+
+- `led_on`
+- `led_off`
+- `led_breath`
+- `led_pisca:P:I`
+- `led_blink:I`
+
+### Weather
+
+- `clima`
+- `clima_age`
+- `clima_sync`
+
+## Quick Usage Example
+
+```bash
+help
+info
+status
+set_fuso:-3
+set_time:2026-10-07 14:30:00
+led_blink:500
+clima_sync
+health
+```
+
+## Hardware and Pinout
+
+According to the current code:
+
+| Signal | GPIO |
+|---|---:|
+| LCD CS | 2 |
+| LCD DC | 0 |
+| LCD RESET | 5 |
+| LCD MOSI | 4 |
+| LCD SCK | 3 |
+| RGB LED | 11 |
+| Page Button | 8 |
+| BOOT Button | 9 |
+| User Button | 10 |
+
+## How to Compile in Arduino IDE
+
+1. Install **ESP32 by Espressif Systems** (3.x series)
+2. Select **ESP32C3 Dev Module**
+3. Enable **USB CDC On Boot** if you want serial over native USB
+4. Use a partition scheme with OTA support
+5. Install **GFX Library for Arduino (Arduino_GFX)**
+6. Open `ESP32C3.ino`, keeping all files together in the same folder
+
+## Main Dependencies
+
+- `WiFi.h`
+- `Preferences.h`
+- `time.h`
+- `Arduino_GFX`
+- `Open-Meteo` via `ClimaManager`
+- Native ESP32 core support for OTA and networking
+
+## Operational Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Btn as Buttons
+    participant Main as MainLoop
+    participant GW as ESP32Gateway
+    participant CMD as CommandProcessor
+    participant DISP as DisplayUtil
+
+    User->>Btn: Press button
+    Btn->>Main: Update page or action
+
+    User->>GW: Send UDP command
+    GW->>CMD: Execute command
+
+    CMD->>DISP: Print response
+    CMD->>GW: Reply via UDP
+
+    Main->>DISP: Render current screen
+```
 
 ## Changelog
 
-Veja [CHANGELOG.md](CHANGELOG.md) para o histórico completo e documentado de alterações.
+See [CHANGELOG.md](CHANGELOG.md) for a complete and documented change history.
+
+## Premium GitHub Presentation
+
+This repository now includes a richer GitHub presentation with:
+
+- top badges
+- Mermaid diagrams
+- architecture blocks
+- visitor-oriented organization
+- clear feature and usage descriptions
+
+## Contributing
+
+Pull requests and improvements are welcome. If you want, I can also turn this into a contribution workflow with issue templates and a development guide.
+
+## License
+
+No license has been defined yet.
+>>>>>>> c80b416886e9ea5370d0c6a4fab140ddd3e75724

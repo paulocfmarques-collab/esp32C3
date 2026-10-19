@@ -7,12 +7,16 @@
 #include <ctype.h>
 #include <HTTPClient.h>
 #include <NetworkClientSecure.h> // Biblioteca nativa e leve para o ESP32-C3
+#include <esp_timer.h>
 
 class ClimaManager {
 public:
     inline static float temperatura = 0.0;
+    inline static int umidade = 0;
+    inline static bool umidadeValida = false;
     inline static int codigoCondicao = 0;
     inline static uint32_t ultimaAtualizacao = 0;
+    inline static int64_t ultimaAtualizacaoUs = 0;
     inline static bool sincronizado = false;
     inline static bool previsaoValida = false;
     inline static float minima = 0, maxima = 0;
@@ -74,6 +78,10 @@ public:
     static bool interpretar(const String& payload) {
         String current, daily;
         float temp, code, low, high, rain;
+        float humidity = 0;
+        const bool hasHumidity = objeto(payload, "current", current) &&
+            numero(current, "relative_humidity_2m", humidity) &&
+            humidity >= 0 && humidity <= 100;
         if (!objeto(payload, "current", current) ||
             !numero(current, "temperature_2m", temp) ||
             !numero(current, "weather_code", code) ||
@@ -100,8 +108,11 @@ public:
         }
         // Publica tudo junto somente depois de validar a resposta completa.
         temperatura = temp; codigoCondicao = (int)code;
+        umidadeValida = hasHumidity;
+        umidade = hasHumidity ? (int)humidity : 0;
         minima = low; maxima = high; chuva = (int)rain; dataPrevisao = date;
         ultimaAtualizacao = millis(); previsaoAtualizada = ultimaAtualizacao;
+        ultimaAtualizacaoUs = esp_timer_get_time();
         sincronizado = true; previsaoValida = true; ultimoErro = "";
         return true;
     }
@@ -123,7 +134,7 @@ public:
         // Porto Alegre - RS, conforme a localidade exibida no painel.
         const String url = "https://api.open-meteo.com/v1/forecast"
             "?latitude=-30.0346&longitude=-51.2177"
-            "&current=temperature_2m,weather_code"
+            "&current=temperature_2m,relative_humidity_2m,weather_code"
             "&daily=temperature_2m_min,temperature_2m_max,precipitation_probability_max"
             "&timezone=America%2FSao_Paulo&forecast_days=1";
         Serial.println("[CLIMA] Consultando API Open-Meteo (Porto Alegre)...");

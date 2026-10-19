@@ -7,10 +7,8 @@
 #include "ClimaManager.h"
 #include <WiFi.h>
 #include <Preferences.h>
+#include "BoardConfig.h"
 
-constexpr uint8_t USER_BUTTON_PIN = 10; // K2: retorna pagina
-constexpr uint8_t PAGE_BUTTON_PIN = 8; // Key1: paginas
-constexpr uint8_t BOOT_BUTTON_PIN = 9; // BOOT: paginas
 volatile bool pageButtonPending = false;
 void ARDUINO_ISR_ATTR onPageButtonPressed() { pageButtonPending = true; }
 
@@ -149,9 +147,11 @@ void loop()
   if (millis() - bootDebounceAt >= 50 && bootReading != bootState) {
     bootState = bootReading;
     if (bootState == LOW) {
+      tempoUltimoComando = millis();
       bootPressedAt = millis();
       display.showHoldMessage("LIMPAR CONFIG?", "BOOT por 5 segundos", 0xFFE0);
     } else {
+      tempoUltimoComando = millis();
       display.clear();
       lastClockUpdate = 0;
     }
@@ -245,10 +245,10 @@ void loop()
       lastClockUpdate = 0;
     }
 
-    // Se estiver ocioso há mais de 15 minutos, roda a cascata Sci-Fi hacker
+    // Apos 15 minutos sem interacao, mostra rostos coloridos em tela cheia.
     if (millis() - tempoUltimoComando > 900000) 
     {
-      display.desenharMatrixScreensaver();
+      display.desenharRobotScreensaver();
       lastClockUpdate = millis(); // Evita desenhar o relógio por cima
     } 
     // Caso contrário, renderiza o painel completo atualizado de 1 em 1 segundo

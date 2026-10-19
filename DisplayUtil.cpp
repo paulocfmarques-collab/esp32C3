@@ -41,6 +41,7 @@ void DisplayUtil::begin() {
 }
 
 void DisplayUtil::clear() {
+    robotActive = false;
     lines.clear();
     ultimaHora = "";
     ultimaData = "";
@@ -97,21 +98,154 @@ void DisplayUtil::showClock(String dateTime) {
     gfx->flush();
 }
 
-void DisplayUtil::desenharMatrixScreensaver() {
-    int colunas = gfx->width() / 12;
-    for (int i = 0; i < 3; i++) { 
-        int x = random(0, colunas) * 12;
-        int y = random(0, gfx->height() / 16) * 16;
-        
-        gfx->fillRect(x, y, 10, 14, backgroundColor); 
-        
-        uint16_t tomVerde = (random(0, 10) > 3) ? COLOR_GREEN : 0x0400;
-        gfx->setTextColor(tomVerde);
-        gfx->setTextSize(1);
-        gfx->setCursor(x, y);
-        gfx->print((char)random(33, 126)); 
+void DisplayUtil::desenharRobotScreensaver() {
+    const uint32_t now = millis();
+    if (!robotActive) {
+        robotActive = true;
+        robotStartedAt = now;
+        robotFrameAt = now - 80;
     }
-    delay(10); 
+    // Limita a animacao sem bloquear comandos, botoes ou OTA.
+    if (now - robotFrameAt < 80) return;
+    robotFrameAt = now;
+    const uint32_t elapsed = now - robotStartedAt;
+    // Olhos: abertos, fechados, coracao, felizes, bravos, redondos,
+    // sonolentos, X, estrela, >/<, lagrimas, curiosos, quadrados, olhar lateral.
+    // Boca: sorriso, triste, reta, O, riso, zigue-zague, torta, beijo, dentes,
+    // lingua, ausente, surpresa preenchida.
+    struct Expression { uint8_t left, right, mouth, brows; };
+    static const Expression expressions[] = {
+        // Primeiras dez: mesma ordem da referencia, lendo cada linha da esquerda.
+        {0,0,0,0}, {1,0,0,0}, {0,0,1,1}, {4,4,1,0}, {0,0,10,0},
+        {2,2,10,0}, {0,0,11,0}, {1,1,2,0}, {3,3,0,0}, {0,0,1,0},
+        {3,3,4,0}, {8,8,4,0}, {7,7,5,0}, {6,6,2,0}, {11,0,6,2},
+        {0,11,3,2}, {9,9,4,0}, {2,2,7,0}, {4,4,8,0}, {0,0,9,0},
+        {1,0,9,0}, {0,1,0,0}, {5,5,5,1}, {6,6,3,0}, {12,12,2,0},
+        {13,13,6,0}, {14,14,0,0}, {8,8,0,0}, {3,3,8,0}, {7,7,3,0},
+        {10,10,3,1}, {11,11,3,2}, {4,4,5,0}, {6,0,6,2}, {0,6,6,2},
+        {2,1,7,0}, {9,9,9,0}, {12,12,8,0}, {5,5,4,0}, {3,1,0,0}
+    };
+    const uint32_t step = elapsed / 4000UL;
+    const uint8_t face = step % (sizeof(expressions) / sizeof(expressions[0]));
+    const Expression& expression = expressions[face];
+    const uint16_t palette[] = {0x07FF, 0x05FF, 0xA81F, 0xF82A, 0x07E0,
+                                0xF81F, 0xFFE0, 0xFC00, 0x07FF, 0xB7E0};
+    // Referencia: ciano, com rosa para a expressao brava e os coracoes.
+    const uint16_t color = face < 10 ? ((face == 3 || face == 5) ? 0xF82A : COLOR_CYAN)
+        : palette[(step + step / 40UL) % (sizeof(palette) / sizeof(palette[0]))];
+    const bool blink = elapsed % 3200UL >= 2960UL;
+    // Pequenos movimentos evitam manter os mesmos pixels acesos.
+    const int dx = int((elapsed / 900UL) % 3) - 1;
+    const int dy = int((elapsed / 1300UL) % 3) - 1;
+    auto x = [&](int v) { return (v + dx) * gfx->width() / 128; };
+    auto y = [&](int v) { return (v + dy) * gfx->height() / 128; };
+    auto line = [&](int ax, int ay, int bx, int by) {
+        for (int t = -1; t <= 1; ++t)
+            gfx->drawLine(x(ax), y(ay + t), x(bx), y(by + t), color);
+    };
+    auto heart = [&](int cx, int cy) {
+        const int r = gfx->width() * 7 / 128;
+        gfx->fillCircle(x(cx - 6), y(cy - 3), r, color);
+        gfx->fillCircle(x(cx + 6), y(cy - 3), r, color);
+        gfx->fillTriangle(x(cx - 13), y(cy - 1), x(cx + 13), y(cy - 1), x(cx), y(cy + 17), color);
+    };
+    auto smile = [&](bool sad) {
+        for (int u = -19; u < 19; ++u) {
+            const int a = u * u / 48;
+            const int b = (u + 1) * (u + 1) / 48;
+            line(64 + u, sad ? 97 + a : 105 - a,
+                 65 + u, sad ? 97 + b : 105 - b);
+        }
+    };
+    gfx->fillScreen(COLOR_DARK);
+    for (int eye = 0; eye < 2; ++eye) {
+        const int cx = eye ? 94 : 34;
+        const uint8_t style = eye ? expression.right : expression.left;
+        if (blink || style == 1) {
+            line(cx - 13, 49, cx + 13, 49);
+        } else if (style == 2) {
+            heart(cx, 46);
+        } else if (style == 3) {
+            // Olhos sorridentes em arco.
+            for (int u = -13; u < 13; ++u)
+                line(cx + u, 43 + u * u / 22, cx + u + 1, 43 + (u + 1) * (u + 1) / 22);
+        } else if (style == 7) {
+            line(cx - 12, 35, cx + 12, 63);
+            line(cx + 12, 35, cx - 12, 63);
+        } else if (style == 8) {
+            // Estrelas feitas apenas com tracos luminosos.
+            line(cx, 31, cx, 65);
+            line(cx - 15, 48, cx + 15, 48);
+            line(cx - 11, 36, cx + 11, 60);
+            line(cx + 11, 36, cx - 11, 60);
+        } else if (style == 9) {
+            const int tip = eye ? -10 : 10;
+            line(cx - tip, 35, cx + tip, 49);
+            line(cx + tip, 49, cx - tip, 63);
+        } else if (style == 5 || style == 11) {
+            const int radius = style == 11 ? 9 : 16;
+            gfx->fillCircle(x(cx), y(49), gfx->width() * radius / 128, color);
+            gfx->fillCircle(x(cx), y(49), gfx->width() * (radius - 5) / 128, COLOR_DARK);
+        } else {
+            const int eyeHeight = style == 6 ? 12 : 36;
+            const int shift = style == 13 ? -6 : style == 14 ? 6 : 0;
+            gfx->fillRoundRect(x(cx - 12 + shift), y(style == 6 ? 45 : 32), gfx->width() * 24 / 128,
+                               gfx->height() * eyeHeight / 128, gfx->width() * (style == 12 ? 2 : style == 6 ? 5 : 11) / 128, color);
+            if (style == 4) {
+                if (eye == 0)
+                    gfx->fillTriangle(x(cx - 14), y(30), x(cx + 14), y(30), x(cx + 14), y(47), COLOR_DARK);
+                else
+                    gfx->fillTriangle(x(cx - 14), y(30), x(cx + 14), y(30), x(cx - 14), y(47), COLOR_DARK);
+                line(cx - 14, eye ? 35 : 27, cx + 14, eye ? 27 : 35);
+            }
+            if (style == 10) {
+                const int dropY = 72 + (elapsed / 120UL) % 8;
+                gfx->fillCircle(x(cx), y(dropY), gfx->width() * 4 / 128, color);
+            }
+        }
+        if (expression.brows == 1) {
+            // Sobrancelhas preocupadas: pontas internas levantadas.
+            line(cx - 13, eye ? 23 : 28, cx + 13, eye ? 28 : 23);
+        } else if (expression.brows == 2) {
+            line(cx - 12, eye ? 25 : 20, cx + 12, eye ? 25 : 24);
+        }
+    }
+    const uint8_t mouth = expression.mouth;
+    if (mouth == 10) {
+        // Neutro e apaixonado, como na imagem: somente olhos.
+    } else if (mouth == 11) {
+        gfx->fillRoundRect(x(56), y(91), gfx->width() * 16 / 128,
+                           gfx->height() * 20 / 128, gfx->width() * 7 / 128, color);
+    } else if (mouth == 3 || mouth == 7) {
+        const int radius = mouth == 7 ? 6 : 11;
+        gfx->fillCircle(x(64), y(101), gfx->width() * radius / 128, color);
+        gfx->fillCircle(x(64), y(101), gfx->width() * (radius - 4) / 128, COLOR_DARK);
+    } else if (mouth == 2) {
+        line(49, 101, 79, 101);
+    } else if (mouth == 4 || mouth == 8 || mouth == 9) {
+        gfx->fillRoundRect(x(43), y(90), gfx->width() * 42 / 128,
+                           gfx->height() * 23 / 128, gfx->width() * 8 / 128, color);
+        if (mouth == 4) {
+            gfx->fillRoundRect(x(48), y(93), gfx->width() * 32 / 128,
+                               gfx->height() * 12 / 128, gfx->width() * 4 / 128, COLOR_DARK);
+        } else if (mouth == 8) {
+            gfx->drawFastHLine(x(46), y(101), gfx->width() * 36 / 128, COLOR_DARK);
+            for (int u = 53; u <= 75; u += 11)
+                gfx->drawFastVLine(x(u), y(93), gfx->height() * 17 / 128, COLOR_DARK);
+        } else {
+            gfx->fillRect(x(48), y(94), gfx->width() * 32 / 128, gfx->height() * 10 / 128, COLOR_DARK);
+            gfx->fillRoundRect(x(64), y(100), gfx->width() * 13 / 128,
+                               gfx->height() * 18 / 128, gfx->width() * 5 / 128, 0xF82A);
+        }
+    } else if (mouth == 5) {
+        for (int u = 0; u < 4; ++u)
+            line(44 + u * 10, u % 2 ? 105 : 97, 54 + u * 10, u % 2 ? 97 : 105);
+    } else if (mouth == 6) {
+        line(47, 105, 65, 102);
+        line(65, 102, 81, 94);
+    } else {
+        smile(mouth == 1);
+    }
     gfx->flush();
 }
 

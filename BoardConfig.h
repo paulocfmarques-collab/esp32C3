@@ -13,6 +13,9 @@
 // Ajuste offsets/inversao se a revisao do painel for diferente.
 #define TFT_IPS false
 #define BOARD_LED_PIN 11
+#define USER_BUTTON_PIN 10
+#define PAGE_BUTTON_PIN 8
+#define BOOT_BUTTON_PIN 9
 
 // Deslocamento global de 90 graus para a esquerda.
 #define DISPLAY_ROTATION_OFFSET 3

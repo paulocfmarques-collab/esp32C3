@@ -18,6 +18,9 @@ private:
     void drawWifiHistory();
     uint32_t lastRssiSample = 0;
     bool rssiSampled = false;
+    uint32_t robotFrameAt = 0;
+    uint32_t robotStartedAt = 0;
+    bool robotActive = false;
     
     String ultimaHora;
     String ultimaData;
@@ -43,7 +46,7 @@ public:
     void showSystemPage();
     void showSavedWifiPage(const String ssids[5], int connectedSlot, uint8_t nextSlot);
     void showHoldMessage(const String& line1, const String& line2, uint16_t color);
-    void desenharMatrixScreensaver(); 
+    void desenharRobotScreensaver();
     
     void print(String text);
     void println(String text);

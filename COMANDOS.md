@@ -1,5 +1,9 @@
 # Comandos ESP32-C3
 
+Revisão documental: **31/10/2026**. Fontes:
+[CommandProcessor.cpp](CommandProcessor.cpp). Consulte também
+[CHANGELOG.md](CHANGELOG.md) e o [catálogo geral](../../ESP32_Documents/COMANDOS.md).
+
 Envie o texto por UDP ao IP da placa, porta **4210**. A resposta retorna ao remetente.
 
 ## SISTEMA
@@ -7,14 +11,17 @@ Envie o texto por UDP ao IP da placa, porta **4210**. A resposta retorna ao reme
 | Comando | Descrição |
 |---|---|
 | `help` | Mostra a lista de comandos. |
+| `name` | Identifica o dispositivo; responde `ESP32C3`. |
 | `info` | Resumo do dispositivo. |
 | `status` | Estado do Wi-Fi, relógio e memória. |
 | `uptime` | Tempo ligado. |
 | `reason` | Motivo do último reset. |
+| `crash_info` | Lê o crash salvo na flash e apaga o registro após leitura bem-sucedida, sem gravar em SD. Mostra reset, panic, tarefa, PC, registradores e pilha RISC-V, além do SHA256 do ELF. |
 | `version` | Versão gerada na compilação. |
 | `build` | Data e hora de compilação. |
 | `alive` | Responde com o IP. |
 | `reboot` | Reinicia o dispositivo. |
+| `reset_counters` | Zera somente os contadores NVS persistentes de boot/watchdog; preserva as configurações Prometheus. |
 | `desliga` | Sono profundo: desativa Wi-Fi, LED e LCD; retorna por RESET. O backlight permanece alimentado. |
 | `temp` | Temperatura interna do chip. |
 | `cpu` | Modelo, revisão e frequência da CPU. |
@@ -22,6 +29,10 @@ Envie o texto por UDP ao IP da placa, porta **4210**. A resposta retorna ao reme
 | `flash` | Informações da memória flash. |
 | `chip_info` | Chip e SDK. |
 | `health` | Diagnóstico de Wi-Fi, relógio, RAM e clima. |
+
+O `crash_info` funciona por Serial USB e UDP. Requer core dump em flash no formato ELF e uma partição `coredump`. Sem registro válido ou com falha na leitura, não apaga a flash. No ESP32-C3, o backtrace é reconstruído no computador usando a pilha e o ELF da compilação que sofreu o crash. Salve a resposta antes de fechar o terminal: a próxima consulta não terá o registro já apagado.
+
+O relatório da pilha pode ocupar vários pacotes UDP; mantenha a recepção aberta até a mensagem final sobre o apagamento do registro. Pela Serial USB, o relatório aparece completo em sequência.
 
 ## REDE
 
@@ -65,7 +76,7 @@ Envie o texto por UDP ao IP da placa, porta **4210**. A resposta retorna ao reme
 | Comando | Descrição |
 |---|---|
 | `clima` | Temperatura e condição do clima. |
-| `clima_age` | Tempo desde a tentativa de atualização. |
+| `clima_age` | Idade da última atualização de clima registrada pelo firmware. |
 | `clima_sync` | Força consulta do clima. |
 
 ## Exemplos de horário e LED
@@ -132,3 +143,13 @@ com timeouts de conexão e leitura de 3 segundos; os pings são assíncronos.
 
 Não foram acrescentados comandos UDP: a navegação usa K1/K2 e `clima_sync`
 continua disponível para solicitar a atualização do clima.
+
+## Protetor atual e limites
+
+O protetor inicia após 15 minutos sem interação: olhos e bocas vetoriais,
+dez expressões de referência seguidas de expressões adicionais. Essa animação
+não adiciona comandos `tela:*`, `brilho:*` ou `protetor:*`.
+
+`init`, `heap`, `heap_min`, `flash_info` e `selftest` não possuem handlers
+locais nesta variante. Use `reason`, `ram`, `flash` e `health`, conforme o caso.
+Não reutilize a lista do ESP32-C6 sem conferir este guia.
