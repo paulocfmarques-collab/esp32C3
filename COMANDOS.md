@@ -6,6 +6,10 @@ Revisão documental: **31/10/2026**. Fontes:
 
 Envie o texto por UDP ao IP da placa, porta **4210**. A resposta retorna ao remetente.
 
+`help` responde com o cabeçalho `COMANDOS` e um comando por linha; argumentos
+são indicados após `:`. Não há descrições junto aos itens, para manter a lista
+simples de interpretar pelo testador.
+
 ## SISTEMA
 
 | Comando | Descrição |

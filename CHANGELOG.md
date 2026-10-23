@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-10-21 — Formato parseável do help
+
+- Padronizada a resposta como `COMANDOS` seguido de um comando por linha.
+- Removidas descrições e exemplos da lista; detalhes permanecem neste guia.
+
+## Olhos ciberneticos do protetor
+
+- Olhos abertos redesenhados para o TFT 128 x 128: iris azul-ciano, pupila
+  escura, aneis concentricos, marcas radiais, circuitos e reflexos claros,
+  com moldura metalica desenhada por primitivas, sem imagens externas.
+- Mantidas as 40 expressoes, bocas, piscadas e movimentos; olhos especiais
+  como coracoes e estrelas continuam estilizados. O olhar lateral desloca
+  a iris e as pupilas variam com a expressao e com o tempo.
+- Mantidos o inicio apos 15 minutos e o intervalo minimo de 80 ms entre
+  quadros, sem delays adicionais ou novos buffers de imagem.
+- Compilacao e teste na placa ficam a cargo do usuario.
+
 ## 2026-10-31 — Reset dos contadores NVS
 
 - Adicionado `reset_counters` para zerar boot/watchdog no namespace `telemetry`

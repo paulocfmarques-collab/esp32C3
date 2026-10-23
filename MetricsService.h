@@ -38,6 +38,8 @@ class MetricsService
     uint32_t imageBytes = 0, partitionBytes = 0;
     std::atomic<uint32_t> disconnects{0};
     uint64_t requests = 0, errors = 0;
+    bool udpListenerUp = false;
+    uint64_t udpPacketsReceived = 0, udpRepliesSent = 0, udpSendErrors = 0;
     double responseMs = 0;
     float cpuUsage = NAN;
 #if configUSE_TRACE_FACILITY && configGENERATE_RUN_TIME_STATS
@@ -232,6 +234,14 @@ class MetricsService
         responseMs = elapsedUs / 1000.0;
     }
 
+    void setUdpListenerUp(bool up) { udpListenerUp = up; }
+    void recordUdpPacket() { ++udpPacketsReceived; }
+    void recordUdpSend(bool success)
+    {
+        if (success) ++udpRepliesSent;
+        else ++udpSendErrors;
+    }
+
     void update()
     {
 #if configUSE_TRACE_FACILITY && configGENERATE_RUN_TIME_STATS
@@ -312,6 +322,10 @@ class MetricsService
                 sample(out, "esp_wifi_tx_power", "gauge", String(power / 4.0f, 2));
         }
         sample(out, "esp_wifi_disconnect_count", "gauge", String(disconnects.load()));
+        sample(out, "esp_udp_listener_up", "gauge", udpListenerUp ? "1" : "0");
+        sample(out, "esp_udp_packets_received_total", "counter", String(udpPacketsReceived));
+        sample(out, "esp_udp_replies_sent_total", "counter", String(udpRepliesSent));
+        sample(out, "esp_udp_send_errors_total", "counter", String(udpSendErrors));
         sample(out, "esp_cpu_frequency_mhz", "gauge", String(ESP.getCpuFreqMHz()));
         if (isfinite(cpuUsage))
             sample(out, "esp_cpu_usage_percent", "gauge", String(cpuUsage, 3));

@@ -129,7 +129,7 @@ Hidden networks are not discovered by the current scan. Switching between saved 
 
 ## Display and controls
 
-The interface is rotated 90 degrees counterclockwise. Auxiliary pages return to the clock after 30 seconds; UDP responses appear in the console for ten seconds. The screensaver starts after 15 minutes of inactivity.
+The interface is rotated 90 degrees counterclockwise. Auxiliary pages return to the clock after 30 seconds; UDP responses appear in the console for ten seconds. The screensaver starts after 15 minutes of inactivity. Open eyes have cyan cybernetic irises, dark pupils, concentric rings, animated radial highlights, and metallic frames, drawn directly for the 128 x 128 panel. Blinking, gaze movement, mouths, and the 40-expression cycle remain; hearts, stars, and other symbolic eyes keep their stylized shapes.
 
 | Control | Action |
 |---|---|
@@ -412,7 +412,7 @@ graph LR
 - System page with chip, memory, and firmware
 - Saved networks page with active slot and connected network
 - Console screen for command responses
-- Full-screen robot eyes and mouths after 15 minutes of inactivity: the ten reference faces in image order (cyan, with pink anger and hearts), followed by 30 extra expressions in rotating colors. Expressions change every four seconds, with blinking and small movements, on a black background without text or robot shells.
+- Full-screen robot eyes and mouths after 15 minutes of inactivity: 40 expressions changing every four seconds, with blinking and small movements. Open eyes use cyan cybernetic irises and metallic frames on a black background; mouths and symbolic eyes retain their expression colors. No external image assets are needed.
 
 ### Connectivity
 

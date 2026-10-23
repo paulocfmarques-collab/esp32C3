@@ -165,7 +165,7 @@ void ESP32Gateway::begin()
         server.begin();
     }
 
-    udp.begin(udpPort);
+    metrics.setUdpListenerUp(udp.begin(udpPort) == 1);
     startMetricsServer();
     networkSeenAt_ = millis();
 }
@@ -420,6 +420,8 @@ bool ESP32Gateway::receiveCommand(String& comando)
         return false;
     }
 
+    metrics.recordUdpPacket();
+
     char packetBuffer[256];
     int len = udp.read(packetBuffer, sizeof(packetBuffer) - 1);
     if (len <= 0)
@@ -614,9 +616,7 @@ void ESP32Gateway::cleanConfig()
     prefs.clear();
     prefs.end();
 
-    udp.beginPacket(udp.remoteIP(), udp.remotePort());
-    udp.print("WiFi zerado. Reiniciando...\n");
-    udp.endPacket();
+    sendMessage("WiFi zerado. Reiniciando...\n");
 
     for (int i = 0; i < 10; i++)
     {
@@ -627,14 +627,36 @@ void ESP32Gateway::cleanConfig()
 
 void ESP32Gateway::sendMessage(String message)
 {
-    if (!udp.remoteIP())
+    if (!udp.remoteIP() || !udp.remotePort())
     {
         return;
     }
 
-    udp.beginPacket(udp.remoteIP(), udp.remotePort());
-    udp.print(message);
-    udp.endPacket();
+    // Evita o envio automatico interno do buffer UDP (1460 bytes), cujo
+    // resultado nao e propagado por write(). Conta cada datagrama explicitamente.
+    constexpr size_t MAX_REPLY_PACKET = 1200;
+    size_t offset = 0;
+    do
+    {
+        const size_t remaining = message.length() - offset;
+        const size_t length = remaining < MAX_REPLY_PACKET ? remaining : MAX_REPLY_PACKET;
+        if (udp.beginPacket(udp.remoteIP(), udp.remotePort()) != 1)
+        {
+            metrics.recordUdpSend(false);
+            return;
+        }
+        const size_t written = udp.write(
+            reinterpret_cast<const uint8_t*>(message.c_str() + offset), length);
+        if (written != length)
+        {
+            metrics.recordUdpSend(false);
+            return;
+        }
+        const bool sent = udp.endPacket() == 1;
+        metrics.recordUdpSend(sent);
+        if (!sent) return;
+        offset += length;
+    } while (offset < message.length());
 }
 
 String ESP32Gateway::savedSsid(uint8_t slot) const

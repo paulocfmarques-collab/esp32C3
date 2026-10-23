@@ -157,6 +157,87 @@ void DisplayUtil::desenharRobotScreensaver() {
                  65 + u, sad ? 97 + b : 105 - b);
         }
     };
+    auto cyberneticEye = [&](int cx, uint8_t style) {
+        const uint16_t steelDark = 0x1948;
+        const uint16_t steel = 0x4B30;
+        const uint16_t steelLight = 0x8D37;
+        const uint16_t irisDark = 0x0188;
+        const uint16_t irisBlue = 0x0352;
+        const uint16_t ice = 0xBFFF;
+        auto circle = [&](int px, int py, int radius, uint16_t ink, bool filled) {
+            if (filled) gfx->fillCircle(x(px), y(py), gfx->width() * radius / 128, ink);
+            else gfx->drawCircle(x(px), y(py), gfx->width() * radius / 128, ink);
+        };
+        auto detail = [&](int ax, int ay, int bx, int by, uint16_t ink) {
+            gfx->drawLine(x(ax), y(ay), x(bx), y(by), ink);
+        };
+        // Direcoes fixas em escala 100: detalhes sem trigonometria por quadro.
+        static const int8_t directions[24][2] = {
+            {100,0}, {97,26}, {87,50}, {71,71}, {50,87}, {26,97},
+            {0,100}, {-26,97}, {-50,87}, {-71,71}, {-87,50}, {-97,26},
+            {-100,0}, {-97,-26}, {-87,-50}, {-71,-71}, {-50,-87}, {-26,-97},
+            {0,-100}, {26,-97}, {50,-87}, {71,-71}, {87,-50}, {97,-26}
+        };
+        circle(cx, 49, 23, steelDark, true);
+        gfx->fillTriangle(x(cx - 27), y(49), x(cx - 12), y(33), x(cx - 12), y(65), steel);
+        gfx->fillTriangle(x(cx + 27), y(49), x(cx + 12), y(33), x(cx + 12), y(65), steel);
+        circle(cx, 49, 22, steelLight, false);
+        circle(cx, 49, 20, COLOR_DARK, true);
+        circle(cx, 49, 19, steel, false);
+        detail(cx - 25, 47, cx - 15, 35, steelLight);
+        detail(cx + 15, 64, cx + 25, 51, steelLight);
+        circle(cx - 23, 49, 1, ice, true);
+        circle(cx + 23, 49, 1, ice, true);
+
+        const int gaze = style == 13 ? -3 : style == 14 ? 3
+            : int((elapsed / 1800UL) % 5) - 2;
+        const int ix = cx + gaze;
+        const int iy = 49;
+        const int pupil = style == 11 ? 4 : style == 5 ? 8
+            : 6 + int((elapsed / 2400UL) % 2);
+        circle(ix, iy, 17, irisDark, true);
+        circle(ix, iy, 16, COLOR_CYAN, false);
+        circle(ix, iy, 14, irisBlue, false);
+        circle(ix, iy, 11, irisBlue, false);
+        const uint8_t phase = (elapsed / 160UL) % 24;
+        for (uint8_t i = 0; i < 24; ++i) {
+            const int ux = directions[i][0];
+            const int uy = directions[i][1];
+            const int inner = 9 + i % 3;
+            const int outer = 14 + i % 2;
+            const bool lit = (i + 24 - phase) % 24 < 4;
+            detail(ix + ux * inner / 100, iy + uy * inner / 100,
+                   ix + ux * outer / 100, iy + uy * outer / 100,
+                   lit ? ice : COLOR_CYAN);
+            gfx->drawPixel(x(ix + ux * 18 / 100), y(iy + uy * 18 / 100),
+                           i % 3 == 0 ? ice : irisBlue);
+            if (i % 4 == 0) {
+                const int vx = directions[(i + 1) % 24][0];
+                const int vy = directions[(i + 1) % 24][1];
+                detail(ix + ux * 12 / 100, iy + uy * 12 / 100,
+                       ix + vx * 12 / 100, iy + vy * 12 / 100, ice);
+            }
+        }
+        circle(ix, iy, pupil + 1, ice, false);
+        circle(ix, iy, pupil, COLOR_DARK, true);
+        circle(ix - 7, iy - 8, 2, ice, true);
+        gfx->drawPixel(x(ix + 9), y(iy + 9), COLOR_WHITE);
+
+        if (style == 4) {
+            gfx->fillTriangle(x(cx - 25), y(25), x(cx + 25), y(25),
+                              x(cx < 64 ? cx + 25 : cx - 25), y(49), COLOR_DARK);
+            detail(cx - 23, cx < 64 ? 36 : 48,
+                   cx + 23, cx < 64 ? 48 : 36, COLOR_CYAN);
+        }
+        if (style == 6) {
+            gfx->fillRect(x(cx - 28), y(25), gfx->width() * 56 / 128,
+                          gfx->height() * 23 / 128, COLOR_DARK);
+            detail(cx - 21, 48, cx + 21, 48, COLOR_CYAN);
+        } else if (style == 12) {
+            gfx->drawRect(x(cx - 24), y(25), gfx->width() * 49 / 128,
+                          gfx->height() * 49 / 128, steelLight);
+        }
+    };
     gfx->fillScreen(COLOR_DARK);
     for (int eye = 0; eye < 2; ++eye) {
         const int cx = eye ? 94 : 34;
@@ -182,22 +263,8 @@ void DisplayUtil::desenharRobotScreensaver() {
             const int tip = eye ? -10 : 10;
             line(cx - tip, 35, cx + tip, 49);
             line(cx + tip, 49, cx - tip, 63);
-        } else if (style == 5 || style == 11) {
-            const int radius = style == 11 ? 9 : 16;
-            gfx->fillCircle(x(cx), y(49), gfx->width() * radius / 128, color);
-            gfx->fillCircle(x(cx), y(49), gfx->width() * (radius - 5) / 128, COLOR_DARK);
         } else {
-            const int eyeHeight = style == 6 ? 12 : 36;
-            const int shift = style == 13 ? -6 : style == 14 ? 6 : 0;
-            gfx->fillRoundRect(x(cx - 12 + shift), y(style == 6 ? 45 : 32), gfx->width() * 24 / 128,
-                               gfx->height() * eyeHeight / 128, gfx->width() * (style == 12 ? 2 : style == 6 ? 5 : 11) / 128, color);
-            if (style == 4) {
-                if (eye == 0)
-                    gfx->fillTriangle(x(cx - 14), y(30), x(cx + 14), y(30), x(cx + 14), y(47), COLOR_DARK);
-                else
-                    gfx->fillTriangle(x(cx - 14), y(30), x(cx + 14), y(30), x(cx - 14), y(47), COLOR_DARK);
-                line(cx - 14, eye ? 35 : 27, cx + 14, eye ? 27 : 35);
-            }
+            cyberneticEye(cx, style);
             if (style == 10) {
                 const int dropY = 72 + (elapsed / 120UL) % 8;
                 gfx->fillCircle(x(cx), y(dropY), gfx->width() * 4 / 128, color);

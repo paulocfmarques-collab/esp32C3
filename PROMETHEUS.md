@@ -123,6 +123,10 @@ Informacoes textuais usam gauges com valor 1 e labels.
 | Sistema | `esp_free_rtos_tasks` | Mesma quantidade de tarefas de `esp_task_count`. |
 | Sistema | `esp_flash_usage_percent` | Tamanho do firmware / capacidade da particao em execucao, em porcentagem. Nao e uso de todo o chip flash. |
 | Aplicacao | `application_requests_total` | Counter de requisicoes HTTP concluidas nos dois servidores. |
+| UDP | `esp_udp_listener_up` | Gauge: 1 quando a abertura da porta UDP 4210 teve sucesso; 0 quando falhou. Nao verifica conectividade ou entrega ao cliente. |
+| UDP | `esp_udp_packets_received_total` | Counter de datagramas detectados por `parsePacket()`, incluindo comandos vazios ou invalidos. |
+| UDP | `esp_udp_replies_sent_total` | Counter de datagramas de resposta enviados com sucesso pela API UDP local. Nao confirma recebimento pelo cliente. |
+| UDP | `esp_udp_send_errors_total` | Counter de falhas ao iniciar, escrever ou finalizar um datagrama de resposta. |
 | Aplicacao | `application_errors_total` | Counter de respostas 4xx/5xx ou sem codigo de resposta. |
 | Aplicacao | `application_response_time_ms` | Gauge do tempo de tratamento e envio da ultima requisicao HTTP concluida. |
 
@@ -135,6 +139,10 @@ Informacoes textuais usam gauges com valor 1 e labels.
 - Os contadores HTTP e de desconexao sao em RAM e reiniciam no boot.
   O scrape atual so entra nas estatisticas depois que a resposta termina.
   Tempo de resposta nao e media, percentil, nem latencia total do cliente.
+- Os contadores UDP tambem sao em RAM e reiniciam no boot. Respostas longas
+  sao divididas em datagramas de ate 1200 bytes, contados individualmente.
+  Sem destinatario UDP conhecido, mensagens locais nao tentam envio e nao
+  incrementam erros. A resposta de limpeza do Wi-Fi usa os mesmos contadores.
 - A idade do clima zera somente em uma atualizacao valida e continua crescendo
   quando as consultas falham ou o Wi-Fi cai. Nao mede a idade da observacao na
   origem, mas o tempo desde que o ESP32 aceitou a resposta da API. NTP e a
